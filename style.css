@@ -1,0 +1,45 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    background: black;
+    min-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .container {
+    position: relative;
+    animation: anim 10s linear infinite;
+    margin-left: 5vh;
+    margin-left: 20vh;
+    max-width: 120vh;
+    max-height: 120vh;
+  }
+  
+  .hex-container {
+    display: inline-flex;
+    margin-top: -32px;
+    margin-left: -50px;
+    overflow: hidden;
+  }
+  
+  .hex-container:nth-child(even) {
+    margin-left: 1px;
+  }
+  
+  .hexagon {
+    position: relative;
+    background: #111;
+    height: 110px;
+    width: 100px;
+    margin: 1px;
+    transition: 2s;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    background-size: cover;
+  }
