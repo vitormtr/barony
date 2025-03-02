@@ -1,0 +1,25 @@
+
+node_modules/
+
+
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+
+build/
+
+
+.idea/
+.vscode/
+
+
+.env
+
+
+*.log
+*.tmp
+
+
+.DS_Store          # macOS
+Thumbs.db          # Windows

@@ -43,3 +43,13 @@
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     background-size: cover;
   }
+
+
+  .knight-image {
+    position: absolute;
+    width: 40px; 
+    height: auto;
+    top: 40%;
+    left: 20%;
+    transform: translate(-50%, -50%);
+  }
