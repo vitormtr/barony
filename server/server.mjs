@@ -4,6 +4,7 @@ import { Server as socketIo } from 'socket.io';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import routes from './routes.js'; 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,14 +15,7 @@ const io = new socketIo(server);
 
 app.use(express.static(path.join(__dirname, '../client')));
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/home.html'));
-});
-
-app.get('/board.html', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/barony-board.html'));
-});
-
+app.use('/', routes);
 
 io.on('connection', (socket) => {
     console.log(`Novo jogador conectado: ${socket.id}`);
@@ -43,7 +37,6 @@ io.on('connection', (socket) => {
             socket.emit('error', "Sala não encontrada!");
         }
     });
-
 });
 
 server.listen(3000, () => {
