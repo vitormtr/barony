@@ -4,7 +4,6 @@ export class Hex {
         this.col = col;
         this.texture = this.getRandomHexagonTexture();
         this.element = this.createHexElement();
-        this.addKnightImage();
     }
 
     getRandomHexagonTexture() {
@@ -34,7 +33,7 @@ export class Hex {
         return hex;
     }
 
-    getRandomKnightColor() {
+    /*getRandomKnightColor() {
         const knightColors = ["yellow", "blue", "green", "red"];
         const randomIndex = Math.floor(Math.random() * knightColors.length);
         return knightColors[randomIndex];
@@ -46,5 +45,5 @@ export class Hex {
         knightImage.src = `/images/${knightColor}knight.png`; 
         knightImage.classList.add("knight-image");
         this.element.appendChild(knightImage);
-    }
+    }*/
 }
