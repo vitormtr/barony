@@ -1,10 +1,10 @@
 import express from 'express';
 import http from 'http';
 import { Server as socketIo } from 'socket.io';
-import { nanoid } from 'nanoid';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import routes from './routes.js'; 
+import { handleSocketEvents } from './socketEvents.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,25 +18,7 @@ app.use(express.static(path.join(__dirname, '../client')));
 app.use('/', routes);
 
 io.on('connection', (socket) => {
-    console.log(`Novo jogador conectado: ${socket.id}`);
-
-    socket.on('createRoom', () => {
-        const roomId = nanoid(6);
-        socket.join(roomId);  
-        console.log(`Sala criada com ID: ${roomId}`);
-        socket.emit('roomCreated', roomId);
-    });
-
-    socket.on('joinRoom', (roomId) => {
-        const rooms = io.sockets.adapter.rooms;
-        if (rooms.has(roomId)) {
-            socket.join(roomId);
-            console.log(`Jogador ${socket.id} entrou na sala ${roomId}`);
-            io.to(roomId).emit('playerJoined', roomId);
-        } else {
-            socket.emit('error', "Sala não encontrada!");
-        }
-    });
+    handleSocketEvents(socket, io);  
 });
 
 server.listen(3000, () => {

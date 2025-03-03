@@ -1,12 +1,19 @@
 export class Hex {
-    constructor(row, col) {
+    constructor(row, col, texture) {
         this.row = row;
         this.col = col;
-        this.texture = this.getRandomHexagonTexture();
+        this.texture = texture;  
         this.element = this.createHexElement();
     }
 
-    getRandomHexagonTexture() {
+    createHexElement() {
+        const hex = document.createElement("div");
+        hex.classList.add("hexagon");
+        hex.style.backgroundImage = `url(/images/${this.texture}.png)`;  
+        return hex;
+    }
+
+    /*getRandomHexagonTexture() {
         const hexTextures = [
             { type: "water", chance: 0.20 },
             { type: "mountain", chance: 0.20 },
@@ -24,14 +31,8 @@ export class Hex {
             }
         }
         return "water";
-    }
+    }*/
 
-    createHexElement() {
-        const hex = document.createElement("div");
-        hex.classList.add("hexagon");
-        hex.style.backgroundImage = `url(/images/${this.texture}.png)`;//propriedade background exige uma URL
-        return hex;
-    }
 
     /*getRandomKnightColor() {
         const knightColors = ["yellow", "blue", "green", "red"];
