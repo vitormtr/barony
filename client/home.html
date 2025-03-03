@@ -10,20 +10,25 @@
     <script type="module" src="/socket.js"></script> 
     <script type="module" src="/ui.js"></script> 
 </head>
+<header>    
+</header>
 <body>
-    <h1>Jogo de Tabuleiro</h1>
-
-    <button id="createRoomBtn">Criar Sala</button>
-    
-    <div>
-        <input type="text" id="roomIdInput" placeholder="Digite o ID da Sala">
-        <button id="joinRoomBtn">Entrar na Sala</button>
+    <div class="logo-menu-container">
+        <div class="logo"></div>
+        <div class="menu-container">
+            <button id="createRoomBtn">Criar Sala</button>
+            <div class="entrar-id">
+                <button id="joinRoomBtn">Entrar na Sala</button>
+                <input type="text" id="roomIdInput" placeholder="Digite o ID da Sala">
+            </div>
+        </div>
     </div>
-    
-    <div id="gameInfo"></div>
+
+
 
     <div id="gameArea" style="display: none;">
         <div id="hexContainer"></div> 
     </div>
+
 </body>
-</html>
+

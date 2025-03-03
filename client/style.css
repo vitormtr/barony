@@ -2,16 +2,101 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: 'Seagram', cursive;
+    font-size: 3vh;
   }
   
-  body {
-    background: black;
-    min-height: 100vh;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
+
+body {
+  height: 100vh;
+  width: 100%; 
+  background: black;
+  background-image: url("./images/background.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  overflow: hidden;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+.logo-menu-container{
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+.logo {
+  height: 40vh;
+  width: 45vw;
+  background-image: url("./images/logo4.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  margin: 1vh;
+}
+
+.menu-container {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+.entrar-id {
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+#createRoomBtn {
+  margin: 5vh;
+}
+
+#roomIdInput {
+  padding: 1.5vh;
+  margin: 1.5vh;
+  width: 18vw;
+  border: 3px solid #704214;
+  background: #f4e1c6;
+  color: #3d2b1f;
+  border-radius: 5px;
+  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+button {
+  height: 8vh;
+  width: 15vw;
+  padding: 0.5vh 0.7vw;
+  margin-left: 0.3vw;
+  border: 2px solid #d09c19; 
+  background: linear-gradient(145deg, #5d4037, #3e2723); 
+  color: #f4e1c6;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3);
+  transition: 0.3s;
+}
+
+button:hover {
+  background: linear-gradient(145deg, #5d4037, #3e2723);
+  border-color: #ffd700; 
+  color: #ffd700;
+  transform: scale(1.08);
+}
+
+button:active {
+  transform: scale(0.95);
+  box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.4);
+}
   
   .container {
     position: relative;
@@ -43,6 +128,8 @@
     clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     background-size: cover;
   }
+
+  
 
 
   .knight-image {

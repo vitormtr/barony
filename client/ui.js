@@ -15,3 +15,4 @@ joinRoomBtn.addEventListener('click', () => {
         emitJoinRoom(roomId);
     }
 });
+
