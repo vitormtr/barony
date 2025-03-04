@@ -13,8 +13,49 @@ export class Player{
 
         this.strongholdsInHand = [];
         this.strongholdsOnBoard = [];
-        
+
+        this.hexCount = {
+            water: 0,
+            mountain: 0,
+            farm: 0,
+            forest: 0,
+            plain: 0
+        };
+
         this.onTurn = false;
+    }
+
+    increaseHexCount(type) {
+        if (this.hexCount[type] < 5 && type === 'water') {
+            this.hexCount.water++;
+            return true;
+        }
+        if (this.hexCount[type] < 5 && type === 'mountain') {
+            this.hexCount.mountain++;
+            return true;
+        }
+        if (this.hexCount[type] < 9 && type === 'farm') {
+            this.hexCount.farm++;
+            return true;
+        }
+        if (this.hexCount[type] < 9 && type === 'forest') {
+            this.hexCount.forest++;
+            return true;
+        }
+        if (this.hexCount[type] < 8 && type === 'plain') {
+            this.hexCount.plain++;
+            return true;
+        }
+        return false;  // Retorna falso se o limite for atingido
+    }
+
+    canPlaceHex(type) {
+        if (type === 'water' && this.hexCount.water < 5) return true;
+        if (type === 'mountain' && this.hexCount.mountain < 5) return true;
+        if (type === 'farm' && this.hexCount.farm < 9) return true;
+        if (type === 'forest' && this.hexCount.forest < 9) return true;
+        if (type === 'plain' && this.hexCount.plain < 8) return true;
+        return false;  // Retorna falso se o jogador atingiu o limite para esse tipo
     }
 
     addKnightToHand(knight){
