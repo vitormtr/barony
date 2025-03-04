@@ -1,4 +1,5 @@
 import { Hex } from "./Hex.js";
+import { clickEventHexagon, closeMenuOnClickOutside} from "./ui.js";
 
 export class BoardRender {
     constructor(boardState) {
@@ -22,7 +23,7 @@ export class BoardRender {
 
         for (let row = 0; row < this.boardState.length; row++) {
             const rowContainer = document.createElement("div");
-            rowContainer.classList.add("hex-container");
+            rowContainer.classList.add("hex-row");
             for (let col = 0; col < this.boardState[row].length; col++) {
                 const hexTexture = this.boardState[row][col].texture;
                 const hex = new Hex(row, col, hexTexture);  
@@ -30,5 +31,7 @@ export class BoardRender {
             }
             this.container.appendChild(rowContainer);
         }
+        clickEventHexagon();
+        closeMenuOnClickOutside();
     }
 }

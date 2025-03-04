@@ -8,7 +8,7 @@ export const handleSocketEvents = (socket, io) => {
     socket.on('createRoom', () => {
         console.log('Criando Sala...');
         const roomId = nanoid(6); 
-        const boardState = createBoardState(10, 10)
+        const boardState = createEmptyBoard(15, 15)
         rooms[roomId] = { players: [socket.id], boardState: boardState }; 
         socket.join(roomId);      
         socket.emit('roomCreated', roomId);  
@@ -33,20 +33,19 @@ export const handleSocketEvents = (socket, io) => {
     
 };
 
-function createBoardState(rows, cols) {
+function createEmptyBoard(rows, cols) {
     const boardState = [];
     for (let row = 0; row < rows; row++) {
         const rowState = [];
         for (let col = 0; col < cols; col++) {
-            const hexTexture = getRandomHexagonTexture(); 
-            rowState.push({ texture: hexTexture });
+            rowState.push({ texture: null });
         }
         boardState.push(rowState);
     }
     return boardState;
 }
 
-function getRandomHexagonTexture() {
+/*function getRandomHexagonTexture() {
     const hexTextures = [
         { type: "water", chance: 0.20 },
         { type: "mountain", chance: 0.20 },
@@ -64,4 +63,4 @@ function getRandomHexagonTexture() {
         }
     }
     return "water";  
-}
+}*/

@@ -1,6 +1,6 @@
 import { socket } from './socket.js';
 import { BoardRender } from './BoardRender.js';
-import { createRoomBtn, joinRoomBtn, roomIdInput, gameArea } from './ui.js';
+import { hideMenu } from './ui.js';
 
 socket.on('roomCreated', (roomId) => {
     socket.emit('joinRoom', roomId);
@@ -12,10 +12,7 @@ socket.on('playerJoined', (roomId) => {
 
 socket.on('roomState', (boardState) => {
     const board = new BoardRender(boardState);
-    createRoomBtn.style.display = 'none';
-    joinRoomBtn.style.display = 'none';
-    roomIdInput.style.display = 'none';
-    gameArea.style.display = 'block';
+    hideMenu();
 });
 
 socket.on('error', (message) => {

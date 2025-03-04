@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jogo de Tabuleiro</title>
-    <link rel="stylesheet" href="/style.css"> 
+    <link rel="stylesheet" href="./style.css"> 
     <script src="/socket.io/socket.io.js"></script>
-    <script type="module" src="/events.js"></script> 
-    <script type="module" src="/socket.js"></script> 
-    <script type="module" src="/ui.js"></script> 
+    <script type="module" src="./events.js"></script> 
+    <script type="module" src="./socket.js"></script> 
+    <script type="module" src="./ui.js"></script> 
 </head>
 <header>    
 </header>
 <body>
-    <div class="logo-menu-container">
+    <div id="logoMenuContainer" class="logo-menu-container">
         <div class="logo"></div>
         <div class="menu-container">
             <button id="createRoomBtn">Criar Sala</button>
@@ -24,11 +24,7 @@
         </div>
     </div>
 
-
-
-    <div id="gameArea" style="display: none;">
-        <div id="hexContainer"></div> 
-    </div>
-
+    <div id="hexContainer"></div> 
+    
 </body>
 
