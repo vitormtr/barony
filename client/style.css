@@ -155,17 +155,68 @@ button:active {
   background-color: #f0f0f0;
 }
 
-  .knight-image {
-    position: absolute;
-    width: 40px; 
-    height: auto;
-    top: 40%;
-    left: 20%;
-    transform: translate(-50%, -50%);
-  }
+.knight-image {
+  position: absolute;
+  width: 40px; 
+  height: auto;
+  top: 40%;
+  left: 20%;
+  transform: translate(-50%, -50%);
+}
 
-  #gameInfo {
+#gameInfo {
     margin-top: 20px;
     font-size: 18px;
     color: #333;
+}
+
+#textureMenu {
+  position: fixed;
+  bottom: 1vh;
+  margin-bottom: 5vh;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 15px;
+  padding: 10px;
+  background-color: transparent;
+  z-index: 1000;
+}
+
+.texture-option:hover {
+  transform: scale(1.1);
+}
+
+.hexagon span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+.texture-option {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  background-size: cover;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hex-count {
+  position: absolute;
+  font-size: 14px;
+  font-weight: bold;
+  color: white;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 3px 6px;
+  border-radius: 5px;
+  pointer-events: none; /* Para não interferir no clique */
 }
