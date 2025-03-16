@@ -1,7 +1,7 @@
 
 
 export class Hex {
-    constructor(row, col, texture) {
+    constructor(row, col, texture = null) {
         this.row = row;
         this.col = col;
         this.texture = texture;  

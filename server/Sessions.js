@@ -55,19 +55,18 @@ export class Sessions {
 
         if (!session) return false;
 
-        if (Object.keys(session.players).length < 4){
-            console.log('Não é possível adicionar uma textura enquanto não existir 4 jogadores.')
-            return false;
-        }
+        // if (Object.keys(session.players).length < 4){
+            // console.log('Não é possível adicionar uma textura enquanto não existir 4 jogadores.')
+            // return false;
+        // }
     
-        const { row, col, textureFile } = payload;
+        const { row, col, texture } = payload;
         const hex = session.boardState[row][col];
 
         if (!hex) return false;
 
-        hex.textureFile = textureFile;
-        hex.hasTexture = true;
-
+        hex.texture = texture;
+        
         io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
         return true;
     }

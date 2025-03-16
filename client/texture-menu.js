@@ -23,33 +23,23 @@ export function showTextureMenu(hex) {
 
     menu.innerHTML = '';
 
-    Object.entries(textures).forEach(([textureFile, textureType]) => {
+    Object.entries(textures).forEach(([texture]) => {
         const imgContainer = document.createElement('div');
         imgContainer.classList.add('texture-option');
-        imgContainer.dataset.textureType = textureType;
-        imgContainer.style.backgroundImage = `url(/images/${textureFile})`;
-
+        imgContainer.style.backgroundImage = `url(/images/${texture})`;
         const countLabel = document.createElement('span');
         countLabel.classList.add('hex-count');
-
         imgContainer.onclick = function () {
-                if (placedTextures === 0) {
-                    if (requestTexturePlacement(hex, textureFile, textureType, true)) {
-                        firstHex = hex;
-                        placedTextures++;
-                    }
-                } else {
-                    if (isAdjacentToTexturedHex(hex)) {
-                        if(requestTexturePlacement(hex, textureFile, textureType, false)){
-                            placedTextures++;
-                        }
-                    } else {
-                        alert('A textura só pode ser colocada em um hexágono adjacente ao primeiro!');
-                        return;
-                    }
-                }
-            } 
-  
+            if (hasAnyTexturedHex() && !isAdjacentToTexturedHex(hex)) {
+                console.log(hasAnyTexturedHex(), !isAdjacentToTexturedHex(hex))
+
+                alert('A textura só pode ser colocada em um hexágono adjacente ao primeiro!');
+                return;
+            } else {
+                console.log(hasAnyTexturedHex(), !isAdjacentToTexturedHex(hex))
+                requestTexturePlacement(hex, texture);
+            }
+        } 
         imgContainer.appendChild(countLabel);
         menu.appendChild(imgContainer);
     });
@@ -57,13 +47,11 @@ export function showTextureMenu(hex) {
     menu.style.display = 'flex';
 }
 
-function requestTexturePlacement(hex, textureFile, textureType, isFirst) {
+function requestTexturePlacement(hex, texture) {
     const payload = {
         row: parseInt(hex.dataset.row),
         col: parseInt(hex.dataset.col),
-        textureFile,
-        textureType,
-        isFirst
+        texture
     };
 
     socket.emit('applyTextureToBoard', payload);
@@ -83,22 +71,19 @@ function isAdjacentToTexturedHex(hex) {
     const row = parseInt(hex.dataset.row);
     const col = parseInt(hex.dataset.col);
     let directions = [];
-    if (row % 2 === 1){
+    if (row % 2 === 1) {
         directions = [
-            [-1, 0], [1, 0], [0, -1], [0, 1],
-            [-1, 1], [1, -1], [1, 1], [-1, -1]
+            [-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [0, -1] 
         ];
     } else {
         directions = [
-            [-1, 0], [1, 0], [0, -1], [0, 1],
-            [-1, 1], [1, 1], [-1, -1]
+            [-1, -1], [-1, 0], [0, 1], [1, 0], [1, -1], [0, -1], 
         ];
     }
-
-
     return directions.some(([dRow, dCol]) => {
         const neighbor = document.querySelector(`.hexagon[data-row="${row + dRow}"][data-col="${col + dCol}"]`);
-        return neighbor && neighbor.classList.contains('has-texture');
+        const hexObject = JSON.parse(neighbor.dataset.hex); 
+        return hexObject && hexObject.texture !== null && hexObject.texture !== undefined
     });
 }
 
@@ -109,6 +94,15 @@ function hideTextureMenu() {
         menu.style.display = 'none';
     }
 }
+
+function hasAnyTexturedHex() {
+    return Array.from(document.querySelectorAll('.hexagon')).some(hex => {
+        const hexObject = JSON.parse(hex.dataset.hex); 
+
+        return hexObject?.texture !== null && hexObject?.texture !== undefined;
+    });
+}
+
 
 export function addClickEventToHexagons() {
     document.querySelectorAll('.hexagon').forEach(hex => {

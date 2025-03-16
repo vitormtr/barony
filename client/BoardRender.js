@@ -20,8 +20,8 @@ export function createBoard(boardState) {
         const rowContainer = document.createElement("div");
         rowContainer.classList.add("hex-row");
         for (let col = 0; col < boardState[row].length; col++) {
-            const hexTexture = boardState[row][col].texture;
-            const hex = new Hex(row, col, hexTexture);
+            const hex = new Hex(row, col); 
+            hex.element.dataset.hex = JSON.stringify(hex);
             rowContainer.appendChild(hex.element);
         }
         container.appendChild(rowContainer);
@@ -29,19 +29,21 @@ export function createBoard(boardState) {
     init();
 }
 
-export function updateBoard(boardState) {
-    
-    const newBoardState = boardState.boardState;
- 
+export function updateBoard(board) {
+    const newBoardState = board.boardState;
     for (let row = 0; row < newBoardState.length; row++) {
         for (let col = 0; col < newBoardState[row].length; col++) {
             const newHex = newBoardState[row][col];
             const hexElement = document.querySelector(`.hexagon[data-row="${row}"][data-col="${col}"]`);
+
             if (hexElement) {
-                hexElement.style.backgroundImage = newHex.textureFile 
-                    ? `url(/images/${newHex.textureFile})`
+                const hexObject = JSON.parse(hexElement.dataset.hex); 
+                hexObject.texture = newHex.texture;
+                //Salva o novo objeto com a textura
+                hexElement.dataset.hex = JSON.stringify(hexObject);
+                hexElement.style.backgroundImage = newHex.texture
+                    ? `url(/images/${newHex.texture})`
                     : "";
-                hexElement.classList.toggle("has-texture", newHex.hasTexture);
             }
         }
     }
