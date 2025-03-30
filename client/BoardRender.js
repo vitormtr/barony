@@ -1,6 +1,5 @@
 import { Hex } from "./Hex.js";
-import { init } from "./board-ui.js";
-
+import { addClickEventToHexagons, closeMenuOnClickOutside } from "./texture-menu.js";
 // Constantes globais
 const CONTAINER_ID = "hexContainer";
 const ERROR_MESSAGE = "Erro: hexContainer não encontrado!";
@@ -29,7 +28,8 @@ export function createBoard(boardState) {
 
   clearContainer(container);
   buildBoardStructure(container, boardState);
-  init();
+  addClickEventToHexagons();
+  closeMenuOnClickOutside();
 }
 
 /**
