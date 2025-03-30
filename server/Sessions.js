@@ -15,14 +15,17 @@ export class Sessions {
         this.session[roomId] = {
             boardId,
             players: {},  
-            boardState
+            boardState,
+            playerOnTurn: {}
         };
 
-        const player = new Player(this.getRandomColor(roomId));
+        const player = new Player(this.getRandomColor(roomId), socket.id);
         this.session[roomId].players[socket.id] = player;
+        this.session[roomId].playerOnTurn = player;
         socket.join(roomId);
         socket.emit('createBoard', boardState);
         console.log(`Sessão ${roomId} criada!`);
+        socket.emit('drawPlayers', this.session[roomId].players);
 
         return roomId;
     }
@@ -40,13 +43,11 @@ export class Sessions {
             return;
         }
 
-        const player = new Player(this.getRandomColor(roomId));
+        const player = new Player(this.getRandomColor(roomId), socket.id);
         this.session[roomId].players[socket.id] = player;
         socket.join(roomId);
-        console.log(this.session[roomId].players);
-
         socket.emit('createBoard', this.session[roomId].boardState);
-        
+        socket.emit('drawPlayers', this.session[roomId].players);
     }
 
     applyTextureToBoard(socket, io, payload) {
@@ -59,16 +60,30 @@ export class Sessions {
             // console.log('Não é possível adicionar uma textura enquanto não existir 4 jogadores.')
             // return false;
         // }
-    
         const { row, col, texture } = payload;
-        const hex = session.boardState[row][col];
 
-        if (!hex) return false;
+        //textura é um png, necessario entao remover o .png para decrementar do jogador
+        let textureType = texture.replace(".png", "");
+        console.log(this.session[roomId].players[socket.id].hexCount[textureType]);
+        if (this.session[roomId].players[socket.id].hexCount[textureType] > 0 && this.session[roomId].playerOnTurn === this.session[roomId].players[socket.id]){
+            const hex = session.boardState[row][col];
+            hex.texture = texture;
 
-        hex.texture = texture;
-        
-        io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
-        return true;
+            //decrementa quantidade da textura posicionada do jogador
+            this.session[roomId].players[socket.id].hexCount[textureType]--;
+
+            io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
+
+            //proximo jogador no turno
+            const playersList = Object.values(this.session[roomId].players);
+            const currentIndex = playersList.indexOf(this.session[roomId].playerOnTurn);
+            const nextIndex = (currentIndex + 1) % playersList.length;
+            this.session[roomId].playerOnTurn = playersList[nextIndex];
+            
+            return true;
+        } 
+
+        return false;
     }
 
     getRoomIdBySocketId(socketId) {
@@ -88,5 +103,10 @@ export class Sessions {
         return availableColors.length > 0 
             ? availableColors[Math.floor(Math.random() * availableColors.length)]
             : null; 
+    }
+
+    getPlayersInRoom(roomId) {
+        const session = this.session[roomId];
+        return session ? Object.values(session.players) : [];
     }
 }

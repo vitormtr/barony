@@ -1,10 +1,10 @@
 
 
-export class Player{
-    constructor(color){
+export class Player {
+    constructor(color, id) {
+        this.id = id;
         this.color = color;
-        this.onTurn = false;
-
+        this.image = `${color}player.png`;
         this.hexCount = {
             water: 4,
             farm: 6,
@@ -12,10 +12,11 @@ export class Player{
             plain: 6,
             forest: 6 
         };
-
-        this.citiesOnHand = 5;
-        this.strongHoldsOnHand = 5;
-        this.knightsOnHand = 7;
-        this.villagesOnHand = 14;
+        this.pieces = {
+            city: 5,
+            stronghold: 2,
+            knight: 7,
+            village: 14
+        };
     }
 }

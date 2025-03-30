@@ -1,31 +1,90 @@
 import express from 'express';
 import http from 'http';
-import { Server as socketIo } from 'socket.io';
+import { Server as SocketIO } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Sessions } from './Sessions.js';
-import { handleSocketEvents } from './serverSocketEvents.js'; 
+import { Sessions } from './Sessions.js'; 
+import { handleSocketEvents } from './serverSocketEvents.js';
+import { config } from './config.js';
 
+// Configurações iniciais
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const app = express();
-const server = http.createServer(app);
-const io = new socketIo(server); 
-const sessionManager = new Sessions(); 
-const router = express.Router();
 
-app.use(express.static(path.join(__dirname, '../client')));
-app.use(router);
+class GameServer {
+  constructor() {
+    this.app = express();
+    this.server = http.createServer(this.app);
+    this.io = new SocketIO(this.server, this.getSocketConfig());
+    this.sessionManager = new Sessions();
+    
+    this.setupPaths();
+    this.configureMiddleware();
+    this.configureRoutes();
+    this.configureSocket();
+  }
 
-router.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/home.html'));
-});
+  getSocketConfig() {
+    return {
+      cors: {
+        origin: config.CORS_ORIGIN,
+        methods: ['GET', 'POST']
+      },
+      connectionStateRecovery: config.SOCKET_RECOVERY
+    };
+  }
 
-io.on('connection', (socket) => {
-    console.log(`Novo jogador conectado: ${socket.id}`);
-    handleSocketEvents(socket, io, sessionManager);  
-});
+  setupPaths() {
+    this.clientPath = path.join(__dirname, '../client');
+    this.homePage = path.join(this.clientPath, 'home.html');
+  }
 
-server.listen(3000, () => {
-    console.log('Servidor rodando na porta 3000');
-});
+  configureMiddleware() {
+    this.app.use(express.static(this.clientPath));
+    this.app.use(express.json());
+    this.app.use(this.securityHeaders);
+  }
+
+  securityHeaders(req, res, next) {
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('X-Frame-Options', 'DENY');
+    next();
+  }
+
+  configureRoutes() {
+    this.app.get('/', (req, res) => {
+      res.sendFile(this.homePage);
+    });
+
+    this.app.get('/health', (req, res) => {
+      res.status(200).json({ status: 'healthy' });
+    });
+  }
+
+  configureSocket() {
+    this.io.on('connection', socket => {
+      console.log(`New connection: ${socket.id}`);
+      handleSocketEvents(socket, this.io, this.sessionManager);
+      
+      socket.on('error', error => {
+        console.error(`Socket error (${socket.id}):`, error);
+      });
+    });
+  }
+
+  start() {
+    this.server.listen(config.PORT, () => {
+      console.log(`Server running on port ${config.PORT}`);
+      console.log(`Environment: ${config.NODE_ENV}`);
+    });
+
+    this.server.on('error', error => {
+      console.error('Server error:', error);
+      process.exit(1);
+    });
+  }
+}
+
+// Inicialização do servidor
+const gameServer = new GameServer();
+gameServer.start();

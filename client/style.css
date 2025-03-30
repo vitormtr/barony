@@ -218,5 +218,84 @@ button:active {
   background: rgba(0, 0, 0, 0.6);
   padding: 3px 6px;
   border-radius: 5px;
-  pointer-events: none; /* Para não interferir no clique */
+  pointer-events: none;
 }
+
+#hud {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  justify-content: center;
+  flex-wrap: nowrap;
+  margin-right: 20px;
+}
+
+.playerImage {
+  width: 100px;
+  height: 100px;
+  border: 0.5vh solid rgb(102, 101, 95);
+  border-radius: 10%;
+  position: relative;
+}
+
+.playerName {
+  color: white;
+  border: 0.4vh solid rgb(102, 101, 95);
+  border-left: transparent;
+  width: 100%;
+  margin-top: 5px;
+  padding: 8px;
+  height: 0.6vh;
+  font-size: 0.6em;
+  font-weight: bold;
+  display: flex;
+  flex-direction: row;
+  align-content: center;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+}
+
+.playerPieces {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  flex-direction: row;
+  justify-content: center;
+}
+
+.piece {
+  display: flex;
+  align-items: center;
+  background: #4b4946;
+  padding: 2px 4px;
+  border-bottom-right-radius: 30%;
+  border-bottom-left-radius: 30%;
+  border: 2px solid rgb(17, 17, 16);
+  height: 8vh;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-content: center;
+  justify-content: flex-start;
+}
+
+.piece img {
+  width: 30px;
+  height: 30px;
+}
+
+.citiesCount, .strongHoldsCount, .knightsCount, .villagesCount {
+  font-size: 1em;
+  font-weight: bold;
+  color: #ffffff;
+}
+
