@@ -70,11 +70,6 @@ export const domHelper = {
       element.classList.add(...classes.filter(c => c));
     },
   
-    /**
-     * Remove uma ou mais classes de um elemento
-     * @param {HTMLElement} element - Elemento alvo
-     * @param {string|string[]} className - Classe(s) CSS a remover
-     */
     removeClass(element, className) {
       if (!element || !className) return;
       
@@ -82,23 +77,11 @@ export const domHelper = {
       element.classList.remove(...classes.filter(c => c));
     },
   
-    /**
-     * Alterna uma classe em um elemento
-     * @param {HTMLElement} element - Elemento alvo
-     * @param {string} className - Classe CSS para alternar
-     * @param {boolean} [force] - Forçar adição/remoção
-     */
     toggleClass(element, className, force) {
       if (!element || !className) return;
       element.classList.toggle(className, force);
     },
   
-    /**
-     * Verifica se um elemento contém uma classe
-     * @param {HTMLElement} element - Elemento alvo
-     * @param {string} className - Classe CSS para verificar
-     * @returns {boolean}
-     */
     hasClass(element, className) {
       return element?.classList?.contains(className);
     },
