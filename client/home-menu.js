@@ -1,5 +1,7 @@
 import { emitCreateRoom, emitJoinRoom } from './ClientSocketEvents.js';
 import { CONFIG } from './config.js';
+import { domHelper } from './domUtils.js';
+
 
 const elements = {
   createRoomBtn: document.getElementById(CONFIG.SELECTORS.CREATE_ROOM),
@@ -13,8 +15,8 @@ function initializeMenu() {
 }
 
 function setupEventListeners() {
-  elements.createRoomBtn.addEventListener('click', handleCreateRoom);
-  elements.joinRoomBtn.addEventListener('click', handleJoinRoom);
+  domHelper.onClick(createRoomBtn, handleCreateRoom); 
+  domHelper.onClick(joinRoomBtn, handleJoinRoom);
 }
 
 function handleCreateRoom() {

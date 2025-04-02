@@ -19,10 +19,8 @@ export const CONFIG = {
       HEX: 'hexagon',
       HEX_ROW: 'hex-row',
       COORDINATE: 'coordinate-text',
-      PLAYER: 'player',
       TEXTURE_MENU: 'textureMenu',
       TEXTURE_OPTION: 'texture-option',
-      PLAYER_IMAGE: 'playerImage',
       HEX_COUNT: 'hex-count',
       SELECTED: 'selected'
   },
@@ -43,12 +41,12 @@ export const CONFIG = {
       BODY: 'body'
   },
   TEXTURES: {
-      PLAIN: 'plain.png',
-      MOUNTAIN: 'mountain.png',
-      WATER: 'water.png',
-      FOREST: 'forest.png',
-      FARM: 'farm.png'
-  },
+        'plain.png': 'plain',
+        'mountain.png': 'mountain',
+        'water.png': 'water',
+        'forest.png': 'forest',
+        'farm.png': 'farm'
+    },
   DIRECTION_MAP: {
       EVEN: [[-1, -1], [-1, 0], [0, 1], [1, 0], [1, -1], [0, -1]],
       ODD: [[-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [0, -1]]
@@ -71,6 +69,16 @@ export const CONFIG = {
   },
   FILE_EXTENSIONS: {
       IMAGES: '.png'
+  },
+  
+  PLAYER_CLASSES: {
+    container: "player",          
+    image: "playerImage",         
+    info: "playerInfo",           
+    name: "playerName",           
+    pieces: "playerPieces",       
+    piece: "piece",               
+    count: countType => `${countType}Count` 
   },
   DIRECTIONS: (row) => row % 2 === 1 
       ? CONFIG.DIRECTION_MAP.ODD 
