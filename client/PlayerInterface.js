@@ -23,6 +23,7 @@ function createPlayerElement(player) {
   const container = createElementWithClass("div", CONFIG.PLAYER_CLASSES.container);
   container.appendChild(createProfileImage(player));
   container.appendChild(createPlayerInfo(player));
+
   return container;
 }
 

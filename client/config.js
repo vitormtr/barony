@@ -11,7 +11,11 @@ export const CONFIG = {
         CREATE_BOARD: 'createBoard',
         ERROR: 'error',
         DRAW_PLAYERS: 'drawPlayers',
+        UPDATE_PLAYER_PIECES: 'updatePlayerPieces',
+        PLAYER_JOINED_ROOM: 'playerJoinedRoom',
         JOIN_ROOM: 'joinRoom',
+        UPDATE_PLAYER_TEXTURE: 'updatePlayerTextures',
+        PLAYER_TEXTURE_UPDATED: 'playerTextureUpdated',
         CREATE_ROOM: 'createRoom'
       }
   },

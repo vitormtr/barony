@@ -1,27 +1,27 @@
-// Criar módulo separado para constantes
+import { Player } from './Player.js';
 const SOCKET_EVENTS = {
   CREATE_ROOM: 'createRoom',
   JOIN_ROOM: 'joinRoom',
   APPLY_TEXTURE: 'applyTextureToBoard',
   TEXTURE_APPLIED: 'textureApplied',
   DRAW_PLAYERS: 'drawPlayers',
+  PLAYER_JOINED_ROOM: 'playerJoinedRoom',
   DISCONNECT: 'disconnect',
+  UPDATE_PLAYER_TEXTURE: 'updatePlayerTextures',
+  PLAYER_TEXTURE_UPDATED: 'playerTextureUpdated',
   ERROR: 'error'
 };
 
-// Módulo para logging consistente
 const logger = {
   info: (message, meta = {}) => console.log(`[INFO] ${message}`, meta),
   error: (message, error) => console.error(`[ERROR] ${message}`, error)
 };
 
-// Validação de payloads
 const validatePayload = (payload, requiredFields) => {
   return requiredFields.every(field => payload.hasOwnProperty(field));
 };
 
 export function handleSocketEvents(socket, io, sessionManager) {
-  // Handler genérico de erros
   const handleError = (error, event, meta = {}) => {
     logger.error(`Erro no evento ${event}`, { error, ...meta });
     socket.emit(SOCKET_EVENTS.ERROR, { 
@@ -31,35 +31,36 @@ export function handleSocketEvents(socket, io, sessionManager) {
     });
   };
 
-  // Criar sala com tratamento completo
   const handleCreateRoom = () => {
     try {
       logger.info('Iniciando criação de sala', { socketId: socket.id });
       const roomId = sessionManager.createSession(socket, io);
       logger.info('Sala criada com sucesso', { roomId, socketId: socket.id });
+
+      io.to(roomId).emit(SOCKET_EVENTS.PLAYER_JOINED_ROOM, sessionManager.getPlayer(socket.id));
     } catch (error) {
       handleError(error, SOCKET_EVENTS.CREATE_ROOM);
     }
   };
 
-  // Entrar na sala com validação
   const handleJoinRoom = (roomId) => {
     try {
       if (!roomId) throw new Error('ID da sala não fornecido');
       
       logger.info('Jogador entrando na sala', { roomId, socketId: socket.id });
       sessionManager.addPlayerToSession(socket, io, roomId);
-      
+      console.log(sessionManager)
       const players = sessionManager.getPlayersInRoom(roomId);
       logger.info('Jogadores atualizados na sala', { roomId, players });
       
       io.to(roomId).emit(SOCKET_EVENTS.DRAW_PLAYERS, players);
+      console.log(sessionManager.getPlayer(socket.id))
+      io.to(roomId).emit(SOCKET_EVENTS.PLAYER_JOINED_ROOM, sessionManager.getPlayer(socket.id));
     } catch (error) {
       handleError(error, SOCKET_EVENTS.JOIN_ROOM, { roomId });
     }
   };
 
-  // Aplicar textura com validação
   const handleApplyTexture = (payload) => {
     try {
       const requiredFields = ['row', 'col', 'texture'];
@@ -76,14 +77,22 @@ export function handleSocketEvents(socket, io, sessionManager) {
     }
   };
 
-  // Desconexão com log detalhado
+  const handleUpdatePlayerTexture = (payload) => {
+    console.log('Atualizando textura do jogador', payload);
+    const { texture, player } = payload;
+    const playerObj = new Player(player.id, player.color, player.hexCount, player.pieces); 
+    console.log(playerObj)
+    playerObj.updateTextures(texture);
+    socket.emit(SOCKET_EVENTS.PLAYER_TEXTURE_UPDATED, playerObj);
+  };  
+
   const handleDisconnect = () => {
     logger.info('Jogador desconectado', { socketId: socket.id });
   };
 
-  // Registrar handlers
   socket.on(SOCKET_EVENTS.CREATE_ROOM, handleCreateRoom);
   socket.on(SOCKET_EVENTS.JOIN_ROOM, handleJoinRoom);
   socket.on(SOCKET_EVENTS.APPLY_TEXTURE, handleApplyTexture);
   socket.on(SOCKET_EVENTS.DISCONNECT, handleDisconnect);
+  socket.on(SOCKET_EVENTS.UPDATE_PLAYER_TEXTURE, handleUpdatePlayerTexture);
 }

@@ -7,7 +7,6 @@ import { Sessions } from './Sessions.js';
 import { handleSocketEvents } from './serverSocketEvents.js';
 import { config } from './config.js';
 
-// Configurações iniciais
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -85,6 +84,5 @@ class GameServer {
   }
 }
 
-// Inicialização do servidor
 const gameServer = new GameServer();
 gameServer.start();

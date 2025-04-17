@@ -2,14 +2,18 @@ import { createBoard, updateBoard } from './BoardRender.js';
 import { hideMenu } from './home-menu.js';
 import { createPlayersElement } from './PlayerInterface.js';
 import { CONFIG } from './config.js';
-
+import { updateCountLabel } from './texture-menu.js';
 export const socket = io();
+export let player = null;
 
 socket.on(CONFIG.SOCKET.EVENTS.CONNECT, handleSocketConnect);
 socket.on(CONFIG.SOCKET.EVENTS.UPDATE_BOARD, handleBoardUpdate);
 socket.on(CONFIG.SOCKET.EVENTS.CREATE_BOARD, handleBoardCreation);
 socket.on(CONFIG.SOCKET.EVENTS.DRAW_PLAYERS, handlePlayersDraw);
 socket.on(CONFIG.SOCKET.EVENTS.ERROR, handleSocketError);
+socket.on(CONFIG.SOCKET.EVENTS.PLAYER_JOINED_ROOM, handlePlayerJoinedRoom);
+
+socket.on(CONFIG.SOCKET.EVENTS.PLAYER_TEXTURE_UPDATED, handlePlayerTextureUpdated);
 
 export function emitJoinRoom(roomId) {
   socket.emit(CONFIG.SOCKET.EVENTS.JOIN_ROOM, roomId);
@@ -17,6 +21,11 @@ export function emitJoinRoom(roomId) {
 
 export function emitCreateRoom() {
   socket.emit(CONFIG.SOCKET.EVENTS.CREATE_ROOM);
+}
+
+export function emitUpdatePlayerTexture(texture) {
+  const payload = { texture, player };
+  socket.emit(CONFIG.SOCKET.EVENTS.UPDATE_PLAYER_TEXTURE, payload)
 }
 
 function handleSocketConnect() {
@@ -39,7 +48,18 @@ function handlePlayersDraw(players) {
   createPlayersElement(Object.values(players));
 }
 
+function handlePlayerJoinedRoom(currentPlayer) {
+  player = currentPlayer;
+}
+
+function handlePlayerTextureUpdated(jogador) {
+  console.log('Textura do jogador atualizada', jogador);
+  updateCountLabel(jogador);
+
+}
+
 function handleSocketError(message) {
   alert(`Erro no servidor: ${message}`);
 }
+
 

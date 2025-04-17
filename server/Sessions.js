@@ -73,7 +73,7 @@ export class Sessions {
             this.session[roomId].players[socket.id].hexCount[textureType]--;
 
             io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
-
+            io.to(roomId).emit('updatePlayerPieces', this.session[roomId].players[socket.id]);
             //proximo jogador no turno
             const playersList = Object.values(this.session[roomId].players);
             const currentIndex = playersList.indexOf(this.session[roomId].playerOnTurn);
@@ -108,5 +108,12 @@ export class Sessions {
     getPlayersInRoom(roomId) {
         const session = this.session[roomId];
         return session ? Object.values(session.players) : [];
+    }
+
+    getPlayer(socketId) {
+        const roomId = this.getRoomIdBySocketId(socketId);
+        const session = this.session[roomId];
+        console.log(session.players[socketId])
+        return session ? session.players[socketId] : null;
     }
 }

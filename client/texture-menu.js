@@ -1,4 +1,4 @@
-import { socket } from "./ClientSocketEvents.js";
+import { socket, player, emitUpdatePlayerTexture } from "./ClientSocketEvents.js";
 import { CONFIG } from "./config.js";
 
 export function showTextureMenu(hex) {
@@ -27,7 +27,7 @@ function createTextureOption(textureFile, hex) {
   container.classList.add('texture-option');
   container.style.backgroundImage = `url(/images/${textureFile})`;
   
-  container.appendChild(createCountLabel());
+  container.appendChild(createCountLabel(textureFile));
   container.onclick = createTextureClickHandler(hex, textureFile);
   
   return container;
@@ -40,10 +40,24 @@ function createTextureClickHandler(hex, texture) {
   };
 }
 
-function createCountLabel() {
+function createCountLabel(texture) {
+  texture = texture.replace(".png", "");
   const label = document.createElement('span');
   label.classList.add('hex-count');
+  label.textContent = player.hexCount[`${texture}`] || '0';
   return label;
+}
+
+export function updateCountLabel(player){
+  const textureOptions = document.querySelectorAll('.texture-option');
+  
+  textureOptions.forEach(option => {
+    const backgroundStyle = getComputedStyle(option).backgroundImage;
+    const texturePath = backgroundStyle.match(/\/images\/(.+?)\.png/)[1];
+
+    option.textContent = player.hexCount[`${texturePath}`] || '0';
+  });
+
 }
 
 function validateTexturePlacement(hex) {
@@ -62,14 +76,18 @@ function requestTexturePlacement(hex, texture) {
   };
 
   socket.emit('applyTextureToBoard', payload);
-  socket.once('textureApplied', handleTextureApplication);
+  socket.once('textureApplied', (success) => {
+    handleTextureApplication(success, texture);
+  });
 }
 
-function handleTextureApplication(success) {
-  const message = success 
-    ? "Textura aplicada com sucesso!"
-    : "Falha ao aplicar a textura.";
-  console.log(message);
+function handleTextureApplication(success, textureUsed) {
+  if (success){
+    emitUpdatePlayerTexture(textureUsed);
+    console.log('Textura aplicada com sucesso!');
+  } else {
+    console.log('Falha ao aplicar a textura.');
+  }
 }
 
 function hasAnyTexturedHex() {
