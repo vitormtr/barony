@@ -16,5 +16,7 @@ export const config = {
       UPDATE_PLAYER_PIECES: 'updatePlayerPieces',
       PLAYER_JOINED_ROOM: 'playerJoinedRoom',
       UPDATED_PLAYER_TEXTURE: 'updateDPlayerTextures',
-    },
+      REQUEST_PLAYER_DATA: 'requestPlayerData',
+      PLAYER_DATA_RESPONSE: 'playerDataResponse'
+    }
   };

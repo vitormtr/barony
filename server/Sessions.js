@@ -19,7 +19,7 @@ export class Sessions {
             playerOnTurn: {}
         };
 
-        const player = new Player(this.getRandomColor(roomId), socket.id);
+        const player = new Player(socket.id, this.getRandomColor(roomId));
         this.session[roomId].players[socket.id] = player;
         this.session[roomId].playerOnTurn = player;
         socket.join(roomId);
@@ -43,7 +43,7 @@ export class Sessions {
             return;
         }
 
-        const player = new Player(this.getRandomColor(roomId), socket.id);
+        const player = new Player(socket.id, this.getRandomColor(roomId));
         this.session[roomId].players[socket.id] = player;
         socket.join(roomId);
         socket.emit('createBoard', this.session[roomId].boardState);
@@ -64,7 +64,6 @@ export class Sessions {
 
         //textura é um png, necessario entao remover o .png para decrementar do jogador
         let textureType = texture.replace(".png", "");
-        console.log(this.session[roomId].players[socket.id].hexCount[textureType]);
         if (this.session[roomId].players[socket.id].hexCount[textureType] > 0 && this.session[roomId].playerOnTurn === this.session[roomId].players[socket.id]){
             const hex = session.boardState[row][col];
             hex.texture = texture;

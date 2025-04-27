@@ -1,5 +1,5 @@
 export class Player {
-    constructor(color, id, hexCount = null, pieces = null) {
+    constructor(id, color, hexCount = null, pieces = null) {
         this.id = id;
         this.color = color;
         this.image = `${color}player.png`;
@@ -33,6 +33,16 @@ export class Player {
             mountain: 5, 
             plain: 6,
             forest: 6 
+        };
+    }
+
+    toJSON() {
+        return {
+          id: this.id,
+          color: this.color,
+          image: this.image,
+          hexCount: this.hexCount,
+          pieces: this.pieces,
         };
     }
 }

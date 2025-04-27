@@ -15,7 +15,10 @@ export const CONFIG = {
         PLAYER_JOINED_ROOM: 'playerJoinedRoom',
         JOIN_ROOM: 'joinRoom',
         UPDATE_PLAYER_TEXTURE: 'updatePlayerTextures',
+        PLAYER_DATA: 'playerData',
         PLAYER_TEXTURE_UPDATED: 'playerTextureUpdated',
+        REQUEST_PLAYER_DATA: 'requestPlayerData',
+        PLAYER_DATA_RESPONSE: 'playerDataResponse',
         CREATE_ROOM: 'createRoom'
       }
   },

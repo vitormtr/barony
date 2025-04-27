@@ -1,15 +1,47 @@
-import { socket, player, emitUpdatePlayerTexture } from "./ClientSocketEvents.js";
+import { socket, emitUpdatePlayerTexture, player, emitRequestPlayerData } from "./ClientSocketEvents.js";
 import { CONFIG } from "./config.js";
 
-export function showTextureMenu(hex) {
+export async function showTextureMenu(hex) {
   const menu = getOrCreateTextureMenu();
-  menu.innerHTML = '';
   
-  Object.keys(CONFIG.TEXTURES).forEach(texture => {
-    menu.appendChild(createTextureOption(texture, hex));
-  });
-
+  await emitRequestPlayerData(); 
+  
+  if (menu.dataset.lastHex !== `${hex.dataset.row}-${hex.dataset.col}`) {
+    menu.innerHTML = '';
+    Object.keys(CONFIG.TEXTURES).forEach(texture => {
+      const option = createTextureOption(texture, hex);
+      menu.appendChild(option);
+      updateOptionCount(option, texture);
+    });
+    menu.dataset.lastHex = `${hex.dataset.row}-${hex.dataset.col}`;
+  }
+  
+  updateAllOptionCounts();
   menu.style.display = 'flex';
+}
+
+function updateOptionCount(option, textureName) {
+  const textureKey = textureName.replace('.png', '');
+  const count = player.hexCount[textureKey] || 0;
+  
+  let label = option.querySelector('.hex-count');
+  if (!label) {
+    label = document.createElement('span');
+    label.classList.add('hex-count');
+    option.appendChild(label);
+  }
+  label.textContent = count;
+}
+
+function updateAllOptionCounts() {
+  const options = document.querySelectorAll('.texture-option');
+  options.forEach(option => {
+    const bgImage = getComputedStyle(option).backgroundImage;
+    const textureMatch = bgImage.match(/\/images\/(.+?)\./);
+    if (textureMatch) {
+      updateOptionCount(option, textureMatch[1]);
+    }
+  });
 }
 
 function getOrCreateTextureMenu() {
@@ -27,7 +59,6 @@ function createTextureOption(textureFile, hex) {
   container.classList.add('texture-option');
   container.style.backgroundImage = `url(/images/${textureFile})`;
   
-  container.appendChild(createCountLabel(textureFile));
   container.onclick = createTextureClickHandler(hex, textureFile);
   
   return container;
@@ -40,27 +71,35 @@ function createTextureClickHandler(hex, texture) {
   };
 }
 
-function createCountLabel(texture) {
-  texture = texture.replace(".png", "");
-  const label = document.createElement('span');
-  label.classList.add('hex-count');
-  label.textContent = player.hexCount[`${texture}`] || '0';
-  return label;
-}
-
-export function updateCountLabel(player){
+export function updateCountLabel(player) {
   const textureOptions = document.querySelectorAll('.texture-option');
   
   textureOptions.forEach(option => {
     const backgroundStyle = getComputedStyle(option).backgroundImage;
-    const texturePath = backgroundStyle.match(/\/images\/(.+?)\.png/)[1];
-
-    option.textContent = player.hexCount[`${texturePath}`] || '0';
+    const textureMatch = backgroundStyle.match(/\/images\/(.+?)\./);
+    
+    if (textureMatch) {
+      const texturePath = textureMatch[1];
+      const count = player.hexCount[texturePath] || '0';
+      
+      let label = option.querySelector('.hex-count');
+      if (!label) {
+        label = document.createElement('span');
+        label.classList.add('hex-count');
+        option.appendChild(label);
+      }
+      
+      label.textContent = count;
+    }
   });
-
 }
 
 function validateTexturePlacement(hex) {
+  if (getHexTexture(hex) !== null) {
+    alert('Este hexágono já possui uma textura!');
+    return false;
+  }
+
   if (hasAnyTexturedHex() && !isAdjacentToTexturedHex(hex)) {
     alert('A textura só pode ser colocada em um hexágono adjacente ao primeiro!');
     return false;
@@ -78,12 +117,16 @@ function requestTexturePlacement(hex, texture) {
   socket.emit('applyTextureToBoard', payload);
   socket.once('textureApplied', (success) => {
     handleTextureApplication(success, texture);
+    emitRequestPlayerData();
+    const currentPlayer = player;
+    updateCountLabel(currentPlayer);
   });
 }
 
 function handleTextureApplication(success, textureUsed) {
   if (success){
     emitUpdatePlayerTexture(textureUsed);
+    hideTextureMenu();
     console.log('Textura aplicada com sucesso!');
   } else {
     console.log('Falha ao aplicar a textura.');

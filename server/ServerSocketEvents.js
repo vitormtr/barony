@@ -9,8 +9,12 @@ const SOCKET_EVENTS = {
   DISCONNECT: 'disconnect',
   UPDATE_PLAYER_TEXTURE: 'updatePlayerTextures',
   PLAYER_TEXTURE_UPDATED: 'playerTextureUpdated',
+  REQUEST_PLAYER_DATA: 'requestPlayerData',
+  PLAYER_DATA_RESPONSE: 'playerDataResponse',
   ERROR: 'error'
 };
+
+
 
 const logger = {
   info: (message, meta = {}) => console.log(`[INFO] ${message}`, meta),
@@ -78,13 +82,23 @@ export function handleSocketEvents(socket, io, sessionManager) {
   };
 
   const handleUpdatePlayerTexture = (payload) => {
-    console.log('Atualizando textura do jogador', payload);
     const { texture, player } = payload;
     const playerObj = new Player(player.id, player.color, player.hexCount, player.pieces); 
-    console.log(playerObj)
     playerObj.updateTextures(texture);
-    socket.emit(SOCKET_EVENTS.PLAYER_TEXTURE_UPDATED, playerObj);
+    
+    socket.emit(SOCKET_EVENTS.PLAYER_TEXTURE_UPDATED, JSON.parse(JSON.stringify(playerObj)));
   };  
+
+  const handleRequestPlayerData = (socketId) => {
+    const player = sessionManager.getPlayer(socketId);
+    if (!player) {
+      logger.error('Jogador não encontrado', { socketId: socket.id });
+      return;
+    }
+    const playerObj = new Player(player.id, player.color, player.hexCount, player.pieces);
+
+    socket.emit(SOCKET_EVENTS.PLAYER_DATA_RESPONSE, JSON.parse(JSON.stringify(playerObj)));
+  }
 
   const handleDisconnect = () => {
     logger.info('Jogador desconectado', { socketId: socket.id });
@@ -95,4 +109,5 @@ export function handleSocketEvents(socket, io, sessionManager) {
   socket.on(SOCKET_EVENTS.APPLY_TEXTURE, handleApplyTexture);
   socket.on(SOCKET_EVENTS.DISCONNECT, handleDisconnect);
   socket.on(SOCKET_EVENTS.UPDATE_PLAYER_TEXTURE, handleUpdatePlayerTexture);
+  socket.on(SOCKET_EVENTS.REQUEST_PLAYER_DATA, handleRequestPlayerData);
 }
