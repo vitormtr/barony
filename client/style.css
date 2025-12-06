@@ -970,30 +970,56 @@ button:active {
 }
 
 .piece-knight {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
 }
 
 .piece-knight::after {
-  content: '⚔️';
-  font-size: 0.9rem;
+  content: '♞';
+  font-size: 1.1rem;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
 }
 
-.knight-count {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  background: var(--color-primary);
-  color: #1a1a2e;
-  font-size: 0.65rem;
-  font-weight: bold;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
+/* Container de cavaleiros */
+.knights-container {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   justify-content: center;
-  border: 1px solid white;
+  gap: 2px;
+  max-width: 60px;
+}
+
+/* 1 cavaleiro - centralizado */
+.knights-container.knights-1 {
+  justify-content: center;
+}
+
+/* 2 cavaleiros - lado a lado */
+.knights-container.knights-2 {
+  justify-content: center;
+}
+
+/* 3 cavaleiros - triângulo */
+.knights-container.knights-3 {
+  justify-content: center;
+}
+
+.knights-container.knights-3 .piece-knight:first-child {
+  flex-basis: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Cavaleiros menores quando há mais de 1 */
+.knights-container.knights-2 .piece-knight,
+.knights-container.knights-3 .piece-knight {
+  width: 22px;
+  height: 22px;
+}
+
+.knights-container.knights-2 .piece-knight::after,
+.knights-container.knights-3 .piece-knight::after {
+  font-size: 0.85rem;
 }
 
 .piece-stronghold {
@@ -1007,9 +1033,14 @@ button:active {
   font-size: 1.1rem;
 }
 
+.piece-village {
+  width: 32px;
+  height: 32px;
+}
+
 .piece-village::after {
   content: '🏠';
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 /* Cores das peças por jogador */
@@ -1124,7 +1155,7 @@ button:active {
 }
 
 .piece-icon.knight::after {
-  content: '⚔️';
+  content: '♞';
 }
 
 .piece-name {

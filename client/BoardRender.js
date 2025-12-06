@@ -85,45 +85,72 @@ function updateHexElement(row, col, hexData) {
 function renderPieces(element, pieces) {
   // Remove peças existentes
   element.querySelectorAll('.piece').forEach(p => p.remove());
+  const existingContainer = element.querySelector('.pieces-container');
+  if (existingContainer) existingContainer.remove();
 
   // Se não há peças, retorna
   if (!pieces || pieces.length === 0) return;
 
-  // Encontra a cidade e conta cavaleiros
-  const city = pieces.find(p => p.type === 'city');
+  // Separa estruturas e cavaleiros
+  const structure = pieces.find(p => ['city', 'stronghold', 'village'].includes(p.type));
   const knights = pieces.filter(p => p.type === 'knight');
 
   // Container para as peças
-  let container = element.querySelector('.pieces-container');
-  if (!container) {
-    container = document.createElement('div');
-    container.className = 'pieces-container';
-    element.appendChild(container);
-  }
-  container.innerHTML = '';
+  const container = document.createElement('div');
+  container.className = 'pieces-container';
+  element.appendChild(container);
 
-  // Renderiza a cidade
-  if (city) {
-    const cityElement = document.createElement('div');
-    cityElement.className = `piece piece-city piece-${city.color}`;
-    cityElement.title = `Cidade - ${city.color}`;
-    container.appendChild(cityElement);
+  // Renderiza a estrutura (cidade, fortaleza ou vila)
+  if (structure) {
+    const structureElement = document.createElement('div');
+    structureElement.className = `piece piece-${structure.type} piece-${structure.color}`;
+    structureElement.title = `${getStructureName(structure.type)} - ${structure.color}`;
+    container.appendChild(structureElement);
   }
 
-  // Mostra contador de cavaleiros se houver
+  // Agrupa cavaleiros por cor
   if (knights.length > 0) {
-    const knightContainer = document.createElement('div');
-    knightContainer.className = `piece piece-knight piece-${knights[0].color}`;
-    knightContainer.title = `${knights.length} Cavaleiro(s) - ${knights[0].color}`;
+    const knightsByColor = {};
+    knights.forEach(k => {
+      if (!knightsByColor[k.color]) knightsByColor[k.color] = [];
+      knightsByColor[k.color].push(k);
+    });
 
-    // Badge com quantidade
-    const badge = document.createElement('span');
-    badge.className = 'knight-count';
-    badge.textContent = knights.length;
-    knightContainer.appendChild(badge);
+    const knightsContainer = document.createElement('div');
+    const totalKnights = Math.min(knights.length, 3);
+    knightsContainer.className = `knights-container knights-${totalKnights}`;
 
-    container.appendChild(knightContainer);
+    // Mostra até 3 cavaleiros total, priorizando variedade de cores
+    let knightsShown = 0;
+    const colors = Object.keys(knightsByColor);
+    let colorIndex = 0;
+
+    while (knightsShown < 3 && knightsShown < knights.length) {
+      const color = colors[colorIndex % colors.length];
+      if (knightsByColor[color].length > 0) {
+        const knight = knightsByColor[color].shift();
+        const knightElement = document.createElement('div');
+        knightElement.className = `piece piece-knight piece-${knight.color}`;
+        knightElement.title = `Cavaleiro - ${knight.color}`;
+        knightsContainer.appendChild(knightElement);
+        knightsShown++;
+      }
+      colorIndex++;
+      // Evita loop infinito se todas as cores estão vazias
+      if (colorIndex > colors.length * 3) break;
+    }
+
+    container.appendChild(knightsContainer);
   }
+}
+
+function getStructureName(type) {
+  const names = {
+    city: 'Cidade',
+    stronghold: 'Fortaleza',
+    village: 'Vila'
+  };
+  return names[type] || type;
 }
 
 function setHexMetadata(element, { row, col, texture }) {
