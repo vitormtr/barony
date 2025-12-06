@@ -31,7 +31,7 @@ function createPlayerElement(player) {
 function createProfileImage(player) {
   const img = createElementWithClass("img", CONFIG.PLAYER_CLASSES.image);
   img.src = `./images/${player.image}`;
-  img.alt = `Jogador ${player.name}`;
+  img.alt = `Player ${player.name}`;
   return img;
 }
 

@@ -44,6 +44,9 @@ socket.on('initialPlacementStarted', handleInitialPlacementStarted);
 socket.on('initialPlacementUpdate', handleInitialPlacementUpdate);
 socket.on('initialPlacementComplete', handleInitialPlacementComplete);
 socket.on('piecePlaced', handlePiecePlaced);
+socket.on('youAreLeader', handleYouAreLeader);
+socket.on('dukeAnnounced', handleDukeAnnounced);
+socket.on('gameEnded', handleGameEnded);
 
 
 export function emitJoinRoom(roomId) {
@@ -60,33 +63,33 @@ export function emitUpdatePlayerTexture(texture) {
 }
 
 export function emitRequestPlayerData() {
-  console.log('Solicitando dados do jogador ', socket.id);
+  console.log('Requesting player data ', socket.id);
   socket.emit(CONFIG.SOCKET.EVENTS.REQUEST_PLAYER_DATA, socket.id);
 }
 
 function handleSocketConnect() {
-  console.log("Conexão estabelecida com ID:", socket.id);
+  console.log("Connection established with ID:", socket.id);
 }
 
 function handleBoardUpdate(boardState) {
-  console.log('Recebida atualização do tabuleiro');
+  console.log('Board update received');
   updateBoard(boardState);
 }
 
 function handleBoardCreation(boardState) {
-  console.log('Iniciando criação do tabuleiro');
+  console.log('Starting board creation');
   createBoard(boardState);
   hideMenu();
 }
 
 function handlePlayersDraw(players) {
-  console.log('Atualizando interface dos jogadores');
+  console.log('Updating players interface');
   createPlayersElement(Object.values(players));
 }
 
 function handlePlayerJoinedRoom(currentPlayer) {
-  // Este evento é emitido para TODOS os jogadores quando alguém entra
-  // Só atualiza se for o próprio jogador (e ainda não tiver player definido)
+  // This event is emitted to ALL players when someone joins
+  // Only update if it's the player themselves (and player not defined yet)
   if (!player && currentPlayer.id === socket.id) {
     player = currentPlayer;
     setLocalPlayer(currentPlayer.id);
@@ -94,50 +97,50 @@ function handlePlayerJoinedRoom(currentPlayer) {
 }
 
 export function handlePlayerDataResponse(playerData) {
-  console.log('Dados do jogador recebidos:', playerData);
+  console.log('Player data received:', playerData);
   player = playerData;
   setLocalPlayer(playerData.id);
 }
 
 function handleSocketError(message) {
-  showError(`Erro: ${message}`);
+  showError(`Error: ${message}`);
 }
 
 function handleTurnChanged(turnData) {
-  console.log('Turno alterado:', turnData);
+  console.log('Turn changed:', turnData);
   updateTurnIndicator(turnData);
-  // Notifica o menu de ações sobre mudança de turno
+  // Notify action menu about turn change
   actionMenuTurnChanged();
 }
 
 function handlePlayerDisconnected(data) {
-  console.log('Jogador desconectou:', data);
-  showWarning(`Jogador ${data.playerColor} desconectou.`);
+  console.log('Player disconnected:', data);
+  showWarning(`Player ${data.playerColor} disconnected.`);
 }
 
 function handlePhaseChanged(data) {
-  console.log('Fase alterada:', data);
+  console.log('Phase changed:', data);
   setPhase(data.phase);
 
   if (data.phase === 'initialPlacement') {
     if (data.step) setPlacementStep(data.step);
-    showInfo('Fase de posicionamento inicial!');
+    showInfo('Initial placement phase!');
   } else if (data.phase === 'battle') {
-    showInfo('Fase de colocação concluída! Iniciando fase de batalha...');
+    showInfo('Placement phase complete! Starting battle phase...');
   }
 }
 
 function handleRoomCreated(data) {
-  console.log('Sala criada:', data.roomId);
+  console.log('Room created:', data.roomId);
   showRoomInfo(data.roomId);
-  showSuccess(`Sala ${data.roomId} criada! Compartilhe o código.`);
+  showSuccess(`Room ${data.roomId} created! Share the code.`);
 
-  // Quem criou a sala é o líder
+  // Room creator is the leader
   if (data.isLeader) {
     setLeader(true);
   }
 
-  // Atualiza os dados do jogador local
+  // Update local player data
   if (data.player) {
     player = data.player;
     setLocalPlayer(data.player.id);
@@ -146,13 +149,13 @@ function handleRoomCreated(data) {
 }
 
 function handleRoomJoined(data) {
-  console.log('Entrou na sala:', data.roomId);
+  console.log('Joined room:', data.roomId);
   showRoomInfo(data.roomId);
-  showSuccess(`Você entrou na sala ${data.roomId}!`);
-  // Quem entra não é líder
+  showSuccess(`You joined room ${data.roomId}!`);
+  // Joiners are not leaders
   setLeader(false);
 
-  // Atualiza os dados do jogador local
+  // Update local player data
   if (data.player) {
     player = data.player;
     setLocalPlayer(data.player.id);
@@ -161,13 +164,13 @@ function handleRoomJoined(data) {
 }
 
 function handleRandomDistributionComplete(data) {
-  console.log('Distribuição aleatória completa:', data);
+  console.log('Random distribution complete:', data);
   showSuccess(data.message);
   disableDistributionButton();
 }
 
 function handleGameRestarted(data) {
-  console.log('Jogo reiniciado:', data);
+  console.log('Game restarted:', data);
   showSuccess(data.message);
   enableDistributionButton();
   resetPlacementState();
@@ -177,28 +180,28 @@ function handleGameRestarted(data) {
 
 function handleRestartResult(result) {
   if (result.success) {
-    console.log('Reinício bem-sucedido');
+    console.log('Restart successful');
   } else {
     showError(result.message);
   }
 }
 
 function handleInitialPlacementStarted(data) {
-  console.log('Posicionamento inicial iniciado:', data);
+  console.log('Initial placement started:', data);
 
-  // Desabilita o menu de texturas
+  // Disable texture menu
   disableTextureMenu();
 
-  // Mostra transição de fim da construção do tabuleiro
+  // Show board completion transition
   showBoardCompleteTransition(() => {
-    // Após a transição, configura a fase de posicionamento
+    // After transition, configure placement phase
     setPhase('initialPlacement');
     setPlacementStep(data.currentStep);
     setCitiesRemaining(data.citiesRemaining || 3);
     setCityPosition(null);
     showInfo(data.message);
 
-    // Atualiza o indicador de turno (dados vêm junto com o evento)
+    // Update turn indicator (data comes with event)
     if (data.currentPlayerId && data.currentPlayerColor) {
       updateTurnIndicator({
         currentPlayerId: data.currentPlayerId,
@@ -206,13 +209,13 @@ function handleInitialPlacementStarted(data) {
       });
     }
 
-    // Adiciona handler de clique para peças
+    // Add click handler for pieces
     setTimeout(() => addPieceClickHandler(), 100);
   });
 }
 
 function handleInitialPlacementUpdate(data) {
-  console.log('Atualização de posicionamento:', data);
+  console.log('Placement update:', data);
 
   if (data.currentStep) setPlacementStep(data.currentStep);
   if (data.citiesRemaining !== undefined) setCitiesRemaining(data.citiesRemaining);
@@ -221,19 +224,68 @@ function handleInitialPlacementUpdate(data) {
 }
 
 function handleInitialPlacementComplete(data) {
-  console.log('Posicionamento inicial completo:', data);
+  console.log('Initial placement complete:', data);
   setPhase('battle');
   showSuccess(data.message);
-  // Inicia a fase de batalha com o menu de ações
+  // Start battle phase with action menu
   setTimeout(() => initBattlePhase(), 500);
 }
 
 function handlePiecePlaced(data) {
-  console.log('Peça colocada:', data);
-  // A atualização do tabuleiro é feita via updateBoard
+  console.log('Piece placed:', data);
+  // Board update is done via updateBoard
   if (data.pieceType === 'city') {
     setCityPosition({ row: data.row, col: data.col });
   }
 }
 
+function handleYouAreLeader() {
+  console.log('You are now the room leader!');
+  setLeader(true);
+  showInfo('You are now the room leader!');
+}
+
+function handleDukeAnnounced(data) {
+  console.log('Duke announced:', data);
+  showWarning(data.message);
+}
+
+function handleGameEnded(data) {
+  console.log('Game ended:', data);
+  hideActionMenu();
+  showGameEndScreen(data);
+}
+
+function showGameEndScreen(data) {
+  // Remove previous screen if exists
+  const existing = document.getElementById('game-end-screen');
+  if (existing) existing.remove();
+
+  const screen = document.createElement('div');
+  screen.id = 'game-end-screen';
+  screen.className = 'game-end-screen';
+
+  const scoresHtml = data.scores.map((s, i) => `
+    <div class="score-row ${i === 0 ? 'winner' : ''}">
+      <span class="rank">#${i + 1}</span>
+      <span class="color" style="background: ${s.color}"></span>
+      <span class="title">${s.title}</span>
+      <span class="points">${s.score} pts</span>
+      <span class="details">(${s.victoryPoints} VP + ${s.resources} resources)</span>
+    </div>
+  `).join('');
+
+  screen.innerHTML = `
+    <div class="game-end-content">
+      <h1>🏆 Game Over!</h1>
+      <h2>${data.winner.color} won!</h2>
+      <div class="scores-list">
+        ${scoresHtml}
+      </div>
+      <button class="play-again-btn" onclick="location.reload()">Play Again</button>
+    </div>
+  `;
+
+  document.body.appendChild(screen);
+}
 

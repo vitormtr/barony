@@ -39,7 +39,18 @@ class GameServer {
   }
 
   configureMiddleware() {
-    this.app.use(express.static(this.clientPath));
+    // Serve arquivos estáticos com charset UTF-8
+    this.app.use(express.static(this.clientPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.js')) {
+          res.set('Content-Type', 'application/javascript; charset=utf-8');
+        } else if (filePath.endsWith('.css')) {
+          res.set('Content-Type', 'text/css; charset=utf-8');
+        } else if (filePath.endsWith('.html')) {
+          res.set('Content-Type', 'text/html; charset=utf-8');
+        }
+      }
+    }));
     this.app.use(express.json());
     this.app.use(this.securityHeaders);
   }

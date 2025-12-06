@@ -1,4 +1,4 @@
-// Sistema de notificações toast não-bloqueantes
+// Non-blocking toast notification system
 
 let toastContainer = null;
 
@@ -20,7 +20,7 @@ export function showToast(message, type = 'info', duration = 3000) {
 
   container.appendChild(toast);
 
-  // Remove o toast após a duração
+  // Remove the toast after duration
   setTimeout(() => {
     toast.remove();
   }, duration);

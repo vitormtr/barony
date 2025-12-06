@@ -10,14 +10,14 @@ const DIRECTION_MAP = {
 const GAME_PHASES = {
     WAITING: 'waiting',
     PLACEMENT: 'placement',
-    INITIAL_PLACEMENT: 'initialPlacement',  // Fase 2: colocação de cidades e cavaleiros
+    INITIAL_PLACEMENT: 'initialPlacement',  // Phase 2: city and knight placement
     BATTLE: 'battle',
     ENDED: 'ended'
 };
 
-// Terrenos onde cidades podem ser colocadas (apenas planície e campo - NÃO floresta, montanha ou água)
+// Terrains where cities can be placed (only plain and field - NOT forest, mountain or water)
 const CITY_VALID_TERRAINS = ['plain.png', 'farm.png'];
-// Terrenos onde cavaleiros podem ser colocados (qualquer exceto água)
+// Terrains where knights can be placed (any except water)
 const KNIGHT_VALID_TERRAINS = ['farm.png', 'plain.png', 'forest.png', 'mountain.png'];
 
 const TEXTURES = ['water.png', 'farm.png', 'mountain.png', 'plain.png', 'forest.png'];
@@ -39,16 +39,16 @@ export class Sessions {
             playerOnTurn: {},
             gamePhase: GAME_PHASES.WAITING,
             gameStarted: false,
-            leaderId: socket.id,  // Líder é quem criou a sala
-            lockedForEntry: false, // Bloqueia entrada após distribuição aleatória
-            // Fase 2: posicionamento inicial
+            leaderId: socket.id,  // Leader is the room creator
+            lockedForEntry: false, // Block entry after random distribution
+            // Phase 2: initial placement
             initialPlacementState: {
-                round: 0,           // 0 = primeira rodada, 1 = segunda rodada (ordem inversa)
-                turnOrder: [],      // Ordem normal dos jogadores
+                round: 0,           // 0 = first round, 1 = second round (reverse order)
+                turnOrder: [],      // Normal player order
                 currentTurnIndex: 0,
-                placementStep: null,// 'city' ou 'knights'
-                knightsPlaced: 0,   // Quantos cavaleiros foram colocados neste turno
-                cityPosition: null  // Posição da cidade atual para validar adjacência dos cavaleiros
+                placementStep: null,// 'city' or 'knights'
+                knightsPlaced: 0,   // Knights placed this turn
+                cityPosition: null  // Current city position for knight adjacency validation
             }
         };
 
@@ -57,10 +57,10 @@ export class Sessions {
         this.session[roomId].playerOnTurn = player;
         socket.join(roomId);
         socket.emit('createBoard', boardState);
-        console.log(`Sessão ${roomId} criada! Líder: ${socket.id}`);
+        console.log(`Session ${roomId} created! Leader: ${socket.id}`);
         socket.emit('drawPlayers', this.session[roomId].players);
 
-        // Envia informação de turno inicial
+        // Send initial turn info
         socket.emit('turnChanged', {
             currentPlayerId: player.id,
             currentPlayerColor: player.color
@@ -69,37 +69,37 @@ export class Sessions {
         return roomId;
     }
 
-    // Verifica se o jogador é o líder da sala
+    // Check if player is the room leader
     isLeader(socketId, roomId) {
         const session = this.session[roomId];
         return session && session.leaderId === socketId;
     }
 
-    // Distribui texturas aleatoriamente no tabuleiro
+    // Distribute textures randomly on the board
     randomDistribution(socket, io) {
         const roomId = this.getRoomIdBySocketId(socket.id);
         const session = this.session[roomId];
 
         if (!session) {
-            return { success: false, message: 'Sala não encontrada!' };
+            return { success: false, message: 'Room not found!' };
         }
 
         // Apenas o líder pode fazer isso
         if (session.leaderId !== socket.id) {
-            return { success: false, message: 'Apenas o líder da sala pode fazer isso!' };
+            return { success: false, message: 'Only the room leader can do this!' };
         }
 
-        // Não pode fazer se o jogo já começou manualmente
+        // Cannot do if game already started manually
         if (session.gameStarted && session.gamePhase !== GAME_PHASES.WAITING) {
-            return { success: false, message: 'O jogo já está em andamento!' };
+            return { success: false, message: 'Game already in progress!' };
         }
 
         const players = Object.values(session.players);
         if (players.length < 4) {
-            return { success: false, message: 'É necessário 4 jogadores para iniciar o jogo!' };
+            return { success: false, message: '4 players required to start the game!' };
         }
 
-        // Bloqueia entrada de novos jogadores
+        // Block new player entries
         session.lockedForEntry = true;
         session.gameStarted = true;
         session.gamePhase = GAME_PHASES.PLACEMENT;
@@ -114,10 +114,10 @@ export class Sessions {
             });
         });
 
-        // Embaralha as texturas
+        // Shuffle textures
         this.shuffleArray(allTextures);
 
-        // Encontra posições válidas para colocar (começando do centro)
+        // Find valid positions to place (starting from center)
         const centerRow = Math.floor(session.boardState.length / 2);
         const centerCol = Math.floor(session.boardState[0].length / 2);
 
@@ -134,7 +134,7 @@ export class Sessions {
             const [row, col] = queue.shift();
             const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
 
-            // Embaralha direções para mais aleatoriedade
+            // Shuffle directions for more randomness
             this.shuffleArray(directions);
 
             for (const [dRow, dCol] of directions) {
@@ -144,7 +144,7 @@ export class Sessions {
                 const newCol = col + dCol;
                 const key = `${newRow},${newCol}`;
 
-                // Verifica se está dentro dos limites e não foi usado
+                // Check if within bounds and not used
                 if (newRow >= 0 && newRow < session.boardState.length &&
                     newCol >= 0 && newCol < session.boardState[0].length &&
                     !placed.has(key)) {
@@ -163,53 +163,196 @@ export class Sessions {
             });
         });
 
-        // Notifica todos os jogadores
+        // Notify all players
         io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
         io.to(roomId).emit('drawPlayers', players);
         io.to(roomId).emit('randomDistributionComplete', {
-            message: 'Texturas distribuídas aleatoriamente!',
+            message: 'Textures distributed randomly!',
             lockedForEntry: true
         });
 
-        console.log(`Distribuição aleatória na sala ${roomId}. Entrada bloqueada.`);
+        console.log(`Random distribution in room ${roomId}. Entry blocked.`);
 
-        // Inicia a fase de posicionamento inicial (colocar cidades e cavaleiros)
+        // Start initial placement phase (place cities and knights)
         this.startInitialPlacement(roomId, io);
 
-        return { success: true, message: 'Texturas distribuídas com sucesso!' };
+        return { success: true, message: 'Textures distributed successfully!' };
     }
 
-    // Inicia a fase de posicionamento inicial
-    // Regras Barony: ordem especial - jogadores 1,2,3 colocam 1 cidade, jogador 4 coloca 3, depois volta 3,2,1 colocando mais 2 cada
-    // Cavaleiro é colocado automaticamente junto com a cidade
+    // [TEST] Place pieces randomly and start battle phase
+    skipToBattlePhase(socket, io) {
+        const roomId = this.getRoomIdBySocketId(socket.id);
+        const session = this.session[roomId];
+
+        if (!session) {
+            return { success: false, message: 'Room not found!' };
+        }
+
+        // Apenas o líder pode fazer isso
+        if (session.leaderId !== socket.id) {
+            return { success: false, message: 'Only the leader can do this!' };
+        }
+
+        const players = Object.values(session.players);
+        if (players.length < 2) {
+            return { success: false, message: 'Need at least 2 players!' };
+        }
+
+        // First do texture distribution if not done yet
+        if (session.gamePhase === GAME_PHASES.WAITING) {
+            // Force distribution with fewer players for testing
+            session.lockedForEntry = true;
+            session.gameStarted = true;
+
+            // Calculate total textures from all players
+            let allTextures = [];
+            players.forEach(player => {
+                Object.entries(player.hexCount).forEach(([textureType, count]) => {
+                    for (let i = 0; i < count; i++) {
+                        allTextures.push(`${textureType}.png`);
+                    }
+                });
+            });
+
+            // Shuffle textures
+            this.shuffleArray(allTextures);
+
+            // Find valid positions (starting from center)
+            const centerRow = Math.floor(session.boardState.length / 2);
+            const centerCol = Math.floor(session.boardState[0].length / 2);
+
+            // Place first texture in center
+            if (allTextures.length > 0) {
+                session.boardState[centerRow][centerCol].texture = allTextures.shift();
+            }
+
+            // Use BFS to expand from center
+            const placed = new Set([`${centerRow},${centerCol}`]);
+            const queue = [[centerRow, centerCol]];
+
+            while (allTextures.length > 0 && queue.length > 0) {
+                const [row, col] = queue.shift();
+                const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
+                this.shuffleArray(directions);
+
+                for (const [dRow, dCol] of directions) {
+                    if (allTextures.length === 0) break;
+
+                    const newRow = row + dRow;
+                    const newCol = col + dCol;
+                    const key = `${newRow},${newCol}`;
+
+                    if (newRow >= 0 && newRow < session.boardState.length &&
+                        newCol >= 0 && newCol < session.boardState[0].length &&
+                        !placed.has(key)) {
+                        session.boardState[newRow][newCol].texture = allTextures.shift();
+                        placed.add(key);
+                        queue.push([newRow, newCol]);
+                    }
+                }
+            }
+
+            // Reset all players' textures
+            players.forEach(player => {
+                Object.keys(player.hexCount).forEach(key => {
+                    player.hexCount[key] = 0;
+                });
+            });
+        }
+
+        // Find valid hexes for cities (plain/field without pieces)
+        const validCityHexes = [];
+        for (let row = 0; row < session.boardState.length; row++) {
+            for (let col = 0; col < session.boardState[row].length; col++) {
+                const hex = session.boardState[row][col];
+                if (CITY_VALID_TERRAINS.includes(hex.texture) && (!hex.pieces || hex.pieces.length === 0)) {
+                    validCityHexes.push({ row, col });
+                }
+            }
+        }
+
+        this.shuffleArray(validCityHexes);
+
+        // Place 3 cities + 3 knights for each player
+        const citiesPerPlayer = 3;
+        let hexIndex = 0;
+
+        for (const player of players) {
+            for (let i = 0; i < citiesPerPlayer && hexIndex < validCityHexes.length; i++) {
+                const { row, col } = validCityHexes[hexIndex++];
+                const hex = session.boardState[row][col];
+
+                if (!hex.pieces) hex.pieces = [];
+
+                // Place city
+                hex.pieces.push({
+                    type: 'city',
+                    owner: player.id,
+                    color: player.color
+                });
+                player.pieces.city--;
+
+                // Place knight alongside
+                hex.pieces.push({
+                    type: 'knight',
+                    owner: player.id,
+                    color: player.color
+                });
+                player.pieces.knight--;
+            }
+        }
+
+        // Start battle phase
+        session.gamePhase = GAME_PHASES.BATTLE;
+        session.playerOnTurn = players[0];
+
+        // Notifica todos
+        io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
+        io.to(roomId).emit('drawPlayers', players);
+        io.to(roomId).emit('phaseChanged', { phase: 'battle' });
+        io.to(roomId).emit('initialPlacementComplete', {
+            message: '[TEST] Pieces placed! Battle phase started!'
+        });
+        io.to(roomId).emit('turnChanged', {
+            currentPlayerId: session.playerOnTurn.id,
+            currentPlayerColor: session.playerOnTurn.color
+        });
+
+        console.log(`[TEST] Skip to battle phase in room ${roomId}`);
+        return { success: true, message: 'Pieces placed randomly!' };
+    }
+
+    // Start initial placement phase
+    // Barony rules: special order - players 1,2,3 place 1 city, player 4 places 3, then back 3,2,1 placing 2 more each
+    // Knight is placed automatically with the city
     startInitialPlacement(roomId, io) {
         const session = this.session[roomId];
         if (!session) return;
 
         session.gamePhase = GAME_PHASES.INITIAL_PLACEMENT;
 
-        // Define a ordem dos jogadores (4 jogadores)
+        // Define player order (4 players)
         const players = Object.values(session.players);
         const playerIds = players.map(p => p.id);
 
-        // Ordem de colocação:
-        // Fase 1: jogador 0 (1x), jogador 1 (1x), jogador 2 (1x), jogador 3 (3x)
-        // Fase 2: jogador 2 (2x), jogador 1 (2x), jogador 0 (2x)
-        // Total por jogador: 3 cidades cada
+        // Placement order:
+        // Phase 1: player 0 (1x), player 1 (1x), player 2 (1x), player 3 (3x)
+        // Phase 2: player 2 (2x), player 1 (2x), player 0 (2x)
+        // Total per player: 3 cities each
         const placementSequence = [
-            { playerId: playerIds[0], citiesToPlace: 1 },  // Jogador 1: 1 cidade
-            { playerId: playerIds[1], citiesToPlace: 1 },  // Jogador 2: 1 cidade
-            { playerId: playerIds[2], citiesToPlace: 1 },  // Jogador 3: 1 cidade
-            { playerId: playerIds[3], citiesToPlace: 3 },  // Jogador 4: 3 cidades
-            { playerId: playerIds[2], citiesToPlace: 2 },  // Jogador 3: +2 cidades
-            { playerId: playerIds[1], citiesToPlace: 2 },  // Jogador 2: +2 cidades
-            { playerId: playerIds[0], citiesToPlace: 2 },  // Jogador 1: +2 cidades
+            { playerId: playerIds[0], citiesToPlace: 1 },  // Player 1: 1 city
+            { playerId: playerIds[1], citiesToPlace: 1 },  // Player 2: 1 city
+            { playerId: playerIds[2], citiesToPlace: 1 },  // Player 3: 1 city
+            { playerId: playerIds[3], citiesToPlace: 3 },  // Player 4: 3 cities
+            { playerId: playerIds[2], citiesToPlace: 2 },  // Player 3: +2 cities
+            { playerId: playerIds[1], citiesToPlace: 2 },  // Player 2: +2 cities
+            { playerId: playerIds[0], citiesToPlace: 2 },  // Player 1: +2 cities
         ];
 
         session.initialPlacementState = {
             placementSequence,
             currentSequenceIndex: 0,
-            citiesPlacedInTurn: 0,      // Cidades colocadas no turno atual
+            citiesPlacedInTurn: 0,      // Cities placed in current turn
         };
 
         // Define o primeiro jogador
@@ -220,29 +363,29 @@ export class Sessions {
             phase: 'initialPlacement'
         });
 
-        // Inclui dados do turno no evento de início para processar após a transição
+        // Include turn data in start event to process after transition
         io.to(roomId).emit('initialPlacementStarted', {
-            message: 'Fase de posicionamento inicial! Coloque sua cidade.',
+            message: 'Initial placement phase! Place your city.',
             currentStep: 'city',
             citiesRemaining: firstTurn.citiesToPlace,
             currentPlayerId: session.playerOnTurn.id,
             currentPlayerColor: session.playerOnTurn.color
         });
 
-        console.log(`Fase de posicionamento inicial iniciada na sala ${roomId}`);
+        console.log(`Initial placement phase started in room ${roomId}`);
     }
 
-    // Coloca uma cidade no tabuleiro (cavaleiro é adicionado automaticamente)
+    // Place a city on the board (knight is added automatically)
     placePiece(socket, io, payload) {
         const roomId = this.getRoomIdBySocketId(socket.id);
         const session = this.session[roomId];
 
         if (!session) {
-            return { success: false, error: 'ROOM_NOT_FOUND', message: 'Sala não encontrada!' };
+            return { success: false, error: 'ROOM_NOT_FOUND', message: 'Room not found!' };
         }
 
         if (session.gamePhase !== GAME_PHASES.INITIAL_PLACEMENT) {
-            return { success: false, error: 'WRONG_PHASE', message: 'Não está na fase de posicionamento!' };
+            return { success: false, error: 'WRONG_PHASE', message: 'Not in placement phase!' };
         }
 
         const { row, col } = payload;
@@ -252,44 +395,44 @@ export class Sessions {
 
         // Validação: é o turno do jogador?
         if (currentTurn.playerId !== socket.id) {
-            return { success: false, error: 'NOT_YOUR_TURN', message: 'Não é seu turno!' };
+            return { success: false, error: 'NOT_YOUR_TURN', message: 'Not your turn!' };
         }
 
-        // Validação: jogador tem cidade disponível?
+        // Validation: does player have a city available?
         if (player.pieces.city <= 0) {
-            return { success: false, error: 'NO_PIECES', message: 'Você não tem mais cidades!' };
+            return { success: false, error: 'NO_PIECES', message: 'No more cities available!' };
         }
 
-        // Validação: jogador tem cavaleiro disponível?
+        // Validation: does player have a knight available?
         if (player.pieces.knight <= 0) {
-            return { success: false, error: 'NO_PIECES', message: 'Você não tem mais cavaleiros!' };
+            return { success: false, error: 'NO_PIECES', message: 'No more knights available!' };
         }
 
-        // Validação: hexágono existe e tem textura
+        // Validation: hex exists and has texture
         const hex = session.boardState[row]?.[col];
         if (!hex || !hex.texture) {
-            return { success: false, error: 'INVALID_HEX', message: 'Hexágono inválido!' };
+            return { success: false, error: 'INVALID_HEX', message: 'Invalid hex!' };
         }
 
-        // Validação: hexágono não está ocupado
+        // Validation: hex is not occupied
         if (hex.pieces && hex.pieces.length > 0) {
-            return { success: false, error: 'HEX_OCCUPIED', message: 'Este hexágono já está ocupado!' };
+            return { success: false, error: 'HEX_OCCUPIED', message: 'This hex is already occupied!' };
         }
 
-        // Validação: terreno válido para cidade (apenas planície e campo)
+        // Validation: valid terrain for city (only plain and field)
         if (!CITY_VALID_TERRAINS.includes(hex.texture)) {
-            return { success: false, error: 'INVALID_TERRAIN', message: 'Cidades só podem ser colocadas em planície ou campo!' };
+            return { success: false, error: 'INVALID_TERRAIN', message: 'Cities can only be placed on plains or fields!' };
         }
 
-        // Validação: cidade não pode ser adjacente a outra cidade
+        // Validation: city cannot be adjacent to another city
         if (this.isAdjacentToCity(session.boardState, row, col)) {
-            return { success: false, error: 'ADJACENT_TO_CITY', message: 'Cidades não podem ser colocadas adjacentes a outras cidades!' };
+            return { success: false, error: 'ADJACENT_TO_CITY', message: 'Cities cannot be placed adjacent to other cities!' };
         }
 
-        // Inicializa array de peças
+        // Initialize pieces array
         hex.pieces = [];
 
-        // Coloca a cidade
+        // Place the city
         hex.pieces.push({
             type: 'city',
             owner: socket.id,
@@ -297,7 +440,7 @@ export class Sessions {
         });
         player.pieces.city--;
 
-        // Coloca o cavaleiro automaticamente na mesma casa
+        // Place knight automatically on the same hex
         hex.pieces.push({
             type: 'knight',
             owner: socket.id,
@@ -305,7 +448,7 @@ export class Sessions {
         });
         player.pieces.knight--;
 
-        // Atualiza contagem de cidades colocadas neste turno
+        // Update city count placed this turn
         state.citiesPlacedInTurn++;
 
         io.to(roomId).emit('piecePlaced', {
@@ -314,15 +457,15 @@ export class Sessions {
         io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
         io.to(roomId).emit('drawPlayers', Object.values(session.players));
 
-        // Verifica se o jogador terminou seu turno
+        // Check if player finished their turn
         if (state.citiesPlacedInTurn >= currentTurn.citiesToPlace) {
-            // Passa para o próximo na sequência
+            // Move to next in sequence
             return this.advanceInitialPlacement(roomId, io);
         } else {
-            // Ainda precisa colocar mais cidades neste turno
+            // Still need to place more cities this turn
             const remaining = currentTurn.citiesToPlace - state.citiesPlacedInTurn;
             io.to(roomId).emit('initialPlacementUpdate', {
-                message: `Cidade colocada! Coloque mais ${remaining} cidade(s).`,
+                message: `City placed! Place ${remaining} more city(ies).`,
                 currentStep: 'city',
                 citiesRemaining: remaining
             });
@@ -330,7 +473,7 @@ export class Sessions {
         }
     }
 
-    // Avança para o próximo jogador no posicionamento inicial
+    // Advance to next player in initial placement
     advanceInitialPlacement(roomId, io) {
         const session = this.session[roomId];
         const state = session.initialPlacementState;
@@ -338,13 +481,13 @@ export class Sessions {
         state.currentSequenceIndex++;
         state.citiesPlacedInTurn = 0;
 
-        // Verifica se terminou a sequência
+        // Check if sequence ended
         if (state.currentSequenceIndex >= state.placementSequence.length) {
-            // Terminou a fase de posicionamento inicial
+            // Finished initial placement phase
             return this.endInitialPlacement(roomId, io);
         }
 
-        // Próximo na sequência
+        // Next in sequence
         const nextTurn = state.placementSequence[state.currentSequenceIndex];
         session.playerOnTurn = session.players[nextTurn.playerId];
 
@@ -354,7 +497,7 @@ export class Sessions {
         });
 
         io.to(roomId).emit('initialPlacementUpdate', {
-            message: `Sua vez! Coloque ${nextTurn.citiesToPlace} cidade(s).`,
+            message: `Your turn! Place ${nextTurn.citiesToPlace} city(ies).`,
             currentStep: 'city',
             citiesRemaining: nextTurn.citiesToPlace
         });
@@ -362,13 +505,13 @@ export class Sessions {
         return { success: true, citiesRemaining: nextTurn.citiesToPlace };
     }
 
-    // Finaliza a fase de posicionamento inicial e inicia a batalha
+    // Finalize initial placement phase and start battle
     endInitialPlacement(roomId, io) {
         const session = this.session[roomId];
 
         session.gamePhase = GAME_PHASES.BATTLE;
 
-        // Define o primeiro jogador para a fase de batalha (o líder)
+        // Define first player for battle phase (the leader)
         const leaderPlayer = session.players[session.leaderId];
         session.playerOnTurn = leaderPlayer || Object.values(session.players)[0];
 
@@ -378,32 +521,32 @@ export class Sessions {
             currentPlayerColor: session.playerOnTurn.color
         });
         io.to(roomId).emit('initialPlacementComplete', {
-            message: 'Posicionamento inicial completo! Iniciando fase de batalha!'
+            message: 'Initial placement complete! Starting battle phase!'
         });
 
-        console.log(`Fase de posicionamento inicial completa na sala ${roomId}. Iniciando batalha.`);
+        console.log(`Initial placement phase complete in room ${roomId}. Starting battle.`);
 
         return { success: true, phaseComplete: true };
     }
 
-    // ========== AÇÕES DA FASE DE BATALHA ==========
+    // ========== BATTLE PHASE ACTIONS ==========
 
-    // Processa uma ação de batalha
+    // Process a battle action
     battleAction(socket, io, payload) {
         const roomId = this.getRoomIdBySocketId(socket.id);
         const session = this.session[roomId];
 
         if (!session) {
-            return { success: false, message: 'Sala não encontrada!' };
+            return { success: false, message: 'Room not found!' };
         }
 
         if (session.gamePhase !== GAME_PHASES.BATTLE) {
-            return { success: false, message: 'Não está na fase de batalha!' };
+            return { success: false, message: 'Not in battle phase!' };
         }
 
         const player = session.players[socket.id];
         if (session.playerOnTurn.id !== socket.id) {
-            return { success: false, message: 'Não é seu turno!' };
+            return { success: false, message: 'Not your turn!' };
         }
 
         const { action } = payload;
@@ -422,35 +565,35 @@ export class Sessions {
             case 'nobleTitle':
                 return this.actionNobleTitle(session, player, payload, io, roomId);
             default:
-                return { success: false, message: 'Ação inválida!' };
+                return { success: false, message: 'Invalid action!' };
         }
     }
 
-    // RECRUTAMENTO: Adiciona 2 cavaleiros em uma cidade (3 se adjacente a lago)
+    // RECRUITMENT: Add 2 knights to a city (3 if adjacent to lake)
     actionRecruitment(session, player, payload, io, roomId) {
         const { row, col } = payload;
         const hex = session.boardState[row]?.[col];
 
         if (!hex) {
-            return { success: false, message: 'Hexágono inválido!' };
+            return { success: false, message: 'Invalid hex!' };
         }
 
-        // Verifica se tem cidade do jogador
+        // Check if player has a city
         const hasCity = hex.pieces?.some(p => p.type === 'city' && p.color === player.color);
         if (!hasCity) {
-            return { success: false, message: 'Selecione uma cidade sua!' };
+            return { success: false, message: 'Select one of your cities!' };
         }
 
-        // Verifica se está adjacente a água (lago)
+        // Check if adjacent to water (lake)
         const adjacentToWater = this.isAdjacentToWater(session.boardState, row, col);
         const knightsToAdd = adjacentToWater ? 3 : 2;
 
-        // Verifica se tem cavaleiros suficientes
+        // Check if enough knights available
         if (player.pieces.knight < knightsToAdd) {
-            return { success: false, message: `Você não tem ${knightsToAdd} cavaleiros disponíveis!` };
+            return { success: false, message: `You don't have ${knightsToAdd} knights available!` };
         }
 
-        // Adiciona cavaleiros
+        // Add knights
         for (let i = 0; i < knightsToAdd; i++) {
             hex.pieces.push({
                 type: 'knight',
@@ -464,87 +607,204 @@ export class Sessions {
 
         return {
             success: true,
-            message: `${knightsToAdd} cavaleiros recrutados!${adjacentToWater ? ' (Bônus de lago!)' : ''}`
+            message: `${knightsToAdd} knights recruited!${adjacentToWater ? ' (Lake bonus!)' : ''}`
         };
     }
 
-    // MOVIMENTO: Move um cavaleiro para hexágono adjacente
+    // MOVEMENT: Move a knight to adjacent hex (with combat)
     actionMovement(session, player, payload, io, roomId) {
         const { from, to } = payload;
         const fromHex = session.boardState[from.row]?.[from.col];
         const toHex = session.boardState[to.row]?.[to.col];
 
         if (!fromHex || !toHex) {
-            return { success: false, message: 'Hexágono inválido!' };
+            return { success: false, message: 'Invalid hex!' };
         }
 
-        // Verifica se tem cavaleiro do jogador no hex de origem
+        // Check if player has knight in source hex
         const knightIndex = fromHex.pieces?.findIndex(p => p.type === 'knight' && p.color === player.color);
         if (knightIndex === -1 || knightIndex === undefined) {
-            return { success: false, message: 'Não há cavaleiro seu neste hexágono!' };
+            return { success: false, message: 'No knight of yours in this hex!' };
         }
 
-        // Verifica adjacência
+        // Check adjacency
         if (!this.isAdjacentToPosition(from.row, from.col, to.row, to.col)) {
-            return { success: false, message: 'O destino deve ser adjacente!' };
+            return { success: false, message: 'Destination must be adjacent!' };
         }
 
-        // Verifica se destino tem textura e não é água
+        // Check if destination has texture and is not water
         if (!toHex.texture || toHex.texture === 'water.png') {
-            return { success: false, message: 'Não pode mover para água ou hex vazio!' };
+            return { success: false, message: 'Cannot move to water or empty hex!' };
         }
 
-        // Move o cavaleiro
+        const toPieces = toHex.pieces || [];
+
+        // Check for enemy city (inaccessible)
+        const hasEnemyCity = toPieces.some(p => p.type === 'city' && p.color !== player.color);
+        if (hasEnemyCity) {
+            return { success: false, message: 'Cannot enter enemy city!' };
+        }
+
+        // Check for enemy stronghold (inaccessible)
+        const hasEnemyStronghold = toPieces.some(p => p.type === 'stronghold' && p.color !== player.color);
+        if (hasEnemyStronghold) {
+            return { success: false, message: 'Cannot enter enemy stronghold!' };
+        }
+
+        // Count enemy knights at destination
+        const enemyKnights = toPieces.filter(p => p.type === 'knight' && p.color !== player.color);
+
+        // Check for 2+ enemy knights (cannot enter)
+        if (enemyKnights.length >= 2) {
+            return { success: false, message: 'Cannot enter hex with 2+ enemy knights!' };
+        }
+
+        // Check mountain with any enemy piece
+        if (toHex.texture === 'mountain.png') {
+            const hasAnyEnemyPiece = toPieces.some(p => p.color !== player.color);
+            if (hasAnyEnemyPiece) {
+                return { success: false, message: 'Cannot enter mountain occupied by enemy!' };
+            }
+        }
+
+        // Move the knight
         const knight = fromHex.pieces.splice(knightIndex, 1)[0];
         if (!toHex.pieces) toHex.pieces = [];
         toHex.pieces.push(knight);
 
+        // Process combat after movement
+        const combatResult = this.processCombat(session, player, toHex, to.row, to.col);
+
         this.emitBoardUpdate(session, io, roomId);
 
-        return { success: true, message: 'Cavaleiro movido!' };
+        let message = 'Knight moved!';
+        if (combatResult.occurred) {
+            message = combatResult.message;
+        }
+
+        return { success: true, message };
     }
 
-    // CONSTRUÇÃO: Substitui cavaleiro por vila ou fortaleza
+    // Process combat in hex
+    processCombat(session, player, hex, row, col) {
+        const pieces = hex.pieces || [];
+
+        // Count current player's pieces
+        const playerKnights = pieces.filter(p => p.type === 'knight' && p.color === player.color);
+
+        // Find enemy pieces
+        const enemyPieces = pieces.filter(p => p.color !== player.color);
+
+        if (enemyPieces.length === 0) {
+            return { occurred: false };
+        }
+
+        // Player knights vs enemy pieces
+        const playerKnightCount = playerKnights.length;
+
+        // Check enemy villages (need 2 knights to destroy)
+        const enemyVillages = enemyPieces.filter(p => p.type === 'village');
+        const enemyKnights = enemyPieces.filter(p => p.type === 'knight');
+
+        let destroyed = [];
+        let resourceGained = null;
+
+        // Combat against villages: 2 knights destroy 1 village
+        if (playerKnightCount >= 2 && enemyVillages.length > 0) {
+            const village = enemyVillages[0];
+            const villageIndex = hex.pieces.findIndex(p => p === village);
+            if (villageIndex !== -1) {
+                hex.pieces.splice(villageIndex, 1);
+                destroyed.push('village');
+
+                // Return village to owner
+                const villageOwner = Object.values(session.players).find(p => p.color === village.color);
+                if (villageOwner) {
+                    villageOwner.pieces.village++;
+                }
+
+                // Attacker gains terrain resource
+                resourceGained = player.addResource(hex.texture);
+            }
+        }
+
+        // Combat against knights: numerical superiority destroys
+        // 2+ player knights destroy enemy knights (1 at a time per movement)
+        if (playerKnightCount >= 2 && enemyKnights.length > 0) {
+            // Peaceful coexistence: 1 vs 1 no combat
+            // With 2+ knights, destroy enemy knight
+            const enemyKnight = enemyKnights[0];
+            const enemyKnightIndex = hex.pieces.findIndex(p => p === enemyKnight);
+            if (enemyKnightIndex !== -1) {
+                hex.pieces.splice(enemyKnightIndex, 1);
+                destroyed.push('knight');
+
+                // Return knight to owner
+                const knightOwner = Object.values(session.players).find(p => p.color === enemyKnight.color);
+                if (knightOwner) {
+                    knightOwner.pieces.knight++;
+                }
+            }
+        }
+
+        if (destroyed.length > 0) {
+            let message = `Combat! Destroyed: ${destroyed.join(', ')}`;
+            if (resourceGained) {
+                message += ` (+1 ${this.getResourceName(resourceGained)})`;
+            }
+            return { occurred: true, message, destroyed, resourceGained };
+        }
+
+        return { occurred: false };
+    }
+
+    // CONSTRUCTION: Replace knight with village or stronghold
     actionConstruction(session, player, payload, io, roomId) {
         const { row, col, buildType } = payload;
         const hex = session.boardState[row]?.[col];
 
         if (!hex) {
-            return { success: false, message: 'Hexágono inválido!' };
+            return { success: false, message: 'Invalid hex!' };
         }
 
-        // Verifica se tem cavaleiro do jogador
+        // Check if player has knight
         const knightIndex = hex.pieces?.findIndex(p => p.type === 'knight' && p.color === player.color);
         if (knightIndex === -1 || knightIndex === undefined) {
-            return { success: false, message: 'Não há cavaleiro seu neste hexágono!' };
+            return { success: false, message: 'No knight of yours in this hex!' };
         }
 
-        // Verifica se já tem estrutura
+        // Check if structure already exists
         const hasStructure = hex.pieces?.some(p => ['city', 'stronghold', 'village'].includes(p.type));
         if (hasStructure) {
-            return { success: false, message: 'Já existe uma estrutura neste hexágono!' };
+            return { success: false, message: 'A structure already exists in this hex!' };
         }
 
-        // Verifica peça disponível
+        // Check for enemy knight (cannot build)
+        const hasEnemyKnight = hex.pieces?.some(p => p.type === 'knight' && p.color !== player.color);
+        if (hasEnemyKnight) {
+            return { success: false, message: 'Cannot build with enemy knight present!' };
+        }
+
+        // Check available pieces
         if (buildType === 'village' && player.pieces.village <= 0) {
-            return { success: false, message: 'Você não tem vilas disponíveis!' };
+            return { success: false, message: 'No villages available!' };
         }
         if (buildType === 'stronghold' && player.pieces.stronghold <= 0) {
-            return { success: false, message: 'Você não tem fortalezas disponíveis!' };
+            return { success: false, message: 'No strongholds available!' };
         }
 
-        // Validação de terreno para fortaleza (apenas montanha ou floresta)
+        // Terrain validation for stronghold (any terrain except water)
         if (buildType === 'stronghold') {
-            if (!['mountain.png', 'forest.png'].includes(hex.texture)) {
-                return { success: false, message: 'Fortalezas só podem ser construídas em montanha ou floresta!' };
+            if (!hex.texture || hex.texture === 'water.png') {
+                return { success: false, message: 'Strongholds cannot be built on water!' };
             }
         }
 
-        // Remove o cavaleiro (volta para reserva)
+        // Remove knight (returns to reserve)
         hex.pieces.splice(knightIndex, 1);
         player.pieces.knight++;
 
-        // Adiciona a estrutura
+        // Add structure
         hex.pieces.push({
             type: buildType,
             owner: player.id,
@@ -552,7 +812,7 @@ export class Sessions {
         });
         player.pieces[buildType]--;
 
-        // Ganha recurso correspondente ao terreno
+        // Gain resource corresponding to terrain
         const resource = player.addResource(hex.texture);
 
         this.emitBoardUpdate(session, io, roomId);
@@ -560,35 +820,45 @@ export class Sessions {
         const resourceName = resource ? this.getResourceName(resource) : '';
         return {
             success: true,
-            message: `${buildType === 'village' ? 'Vila' : 'Fortaleza'} construída!${resource ? ` +1 ${resourceName}` : ''}`
+            message: `${buildType === 'village' ? 'Village' : 'Stronghold'} built!${resource ? ` +1 ${resourceName}` : ''}`
         };
     }
 
-    // NOVA CIDADE: Substitui vila por cidade
+    // NEW CITY: Replace village with city
     actionNewCity(session, player, payload, io, roomId) {
         const { row, col } = payload;
         const hex = session.boardState[row]?.[col];
 
         if (!hex) {
-            return { success: false, message: 'Hexágono inválido!' };
+            return { success: false, message: 'Invalid hex!' };
         }
 
-        // Verifica se tem vila do jogador
+        // Check if player has village
         const villageIndex = hex.pieces?.findIndex(p => p.type === 'village' && p.color === player.color);
         if (villageIndex === -1 || villageIndex === undefined) {
-            return { success: false, message: 'Não há vila sua neste hexágono!' };
+            return { success: false, message: 'No village of yours in this hex!' };
         }
 
-        // Verifica se tem cidade disponível
+        // Check if city available
         if (player.pieces.city <= 0) {
-            return { success: false, message: 'Você não tem cidades disponíveis!' };
+            return { success: false, message: 'No cities available!' };
         }
 
-        // Remove a vila (volta para reserva)
+        // Check not forest (city cannot be in forest)
+        if (hex.texture === 'forest.png') {
+            return { success: false, message: 'Cities cannot be built in forest!' };
+        }
+
+        // Check no adjacent city (from any player)
+        if (this.hasAdjacentCity(session.boardState, row, col)) {
+            return { success: false, message: 'Cannot build city adjacent to another city!' };
+        }
+
+        // Remove village (returns to reserve)
         hex.pieces.splice(villageIndex, 1);
         player.pieces.village++;
 
-        // Adiciona a cidade
+        // Add city
         hex.pieces.push({
             type: 'city',
             owner: player.id,
@@ -596,47 +866,74 @@ export class Sessions {
         });
         player.pieces.city--;
 
-        // Ganha 10 pontos de vitória
+        // Gain 10 victory points
         player.addVictoryPoints(10);
+
+        // Verifica condição de vitória
+        const victoryResult = this.checkVictoryCondition(session, player, io, roomId);
 
         this.emitBoardUpdate(session, io, roomId);
 
-        return { success: true, message: 'Nova cidade fundada! +10 pontos de vitória!' };
+        let message = 'New city founded! +10 victory points!';
+        if (victoryResult) {
+            message += ' ' + victoryResult;
+        }
+
+        return { success: true, message };
     }
 
-    // EXPEDIÇÃO: Coloca cavaleiro na borda do tabuleiro
+    // Check if there's an adjacent city
+    hasAdjacentCity(boardState, row, col) {
+        const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
+
+        for (const [dRow, dCol] of directions) {
+            const newRow = row + dRow;
+            const newCol = col + dCol;
+
+            if (newRow >= 0 && newRow < boardState.length &&
+                newCol >= 0 && newCol < boardState[0].length) {
+                const neighbor = boardState[newRow][newCol];
+                if (neighbor.pieces?.some(p => p.type === 'city')) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // EXPEDITION: Place knight on board edge
     actionExpedition(session, player, payload, io, roomId) {
         const { row, col } = payload;
         const hex = session.boardState[row]?.[col];
 
         if (!hex) {
-            return { success: false, message: 'Hexágono inválido!' };
+            return { success: false, message: 'Invalid hex!' };
         }
 
-        // Verifica se precisa de 2 cavaleiros na reserva
+        // Check if 2 knights available in reserve
         if (player.pieces.knight < 2) {
-            return { success: false, message: 'Você precisa de 2 cavaleiros na reserva!' };
+            return { success: false, message: 'You need 2 knights in reserve!' };
         }
 
-        // Verifica se hex tem textura e não é água
+        // Check if hex has texture and is not water
         if (!hex.texture || hex.texture === 'water.png') {
-            return { success: false, message: 'Selecione um hexágono válido!' };
+            return { success: false, message: 'Select a valid hex!' };
         }
 
-        // Verifica se está vazio
+        // Check if empty
         if (hex.pieces && hex.pieces.length > 0) {
-            return { success: false, message: 'O hexágono deve estar vazio!' };
+            return { success: false, message: 'The hex must be empty!' };
         }
 
-        // Verifica se é borda
+        // Check if border
         if (!this.isBorderHex(session.boardState, row, col)) {
-            return { success: false, message: 'Selecione um hexágono na borda do tabuleiro!' };
+            return { success: false, message: 'Select a hex on the board edge!' };
         }
 
-        // Remove 2 cavaleiros da reserva, 1 volta para a caixa (permanentemente perdido)
+        // Remove 2 knights from reserve, 1 goes back to box (permanently lost)
         player.pieces.knight -= 2;
 
-        // Coloca 1 cavaleiro no tabuleiro
+        // Place 1 knight on board
         if (!hex.pieces) hex.pieces = [];
         hex.pieces.push({
             type: 'knight',
@@ -646,35 +943,115 @@ export class Sessions {
 
         this.emitBoardUpdate(session, io, roomId);
 
-        return { success: true, message: 'Expedição realizada! 1 cavaleiro posicionado na borda.' };
+        return { success: true, message: 'Expedition complete! 1 knight placed on the edge.' };
     }
 
-    // TÍTULO NOBRE: Gasta 15 recursos para subir de título
+    // NOBLE TITLE: Spend 15 resources to advance title
     actionNobleTitle(session, player, payload, io, roomId) {
         const totalResources = player.getTotalResources();
 
         if (totalResources < 15) {
-            return { success: false, message: `Recursos insuficientes! ${totalResources}/15` };
+            return { success: false, message: `Insufficient resources! ${totalResources}/15` };
         }
 
         if (player.title === 'duke') {
-            return { success: false, message: 'Você já é Duque!' };
+            return { success: false, message: 'You are already Duke!' };
         }
 
-        // Gasta 15 recursos
+        // Spend 15 resources
         player.spendResources(15);
 
-        // Sobe de título
+        // Advance title
         const oldTitle = player.getTitleName();
         player.promoteTitle();
         const newTitle = player.getTitleName();
 
+        // Check victory condition (if became Duke)
+        const victoryResult = this.checkVictoryCondition(session, player, io, roomId);
+
         this.emitBoardUpdate(session, io, roomId);
 
-        return { success: true, message: `Título elevado de ${oldTitle} para ${newTitle}!` };
+        let message = `Title elevated from ${oldTitle} to ${newTitle}!`;
+        if (victoryResult) {
+            message += ' ' + victoryResult;
+        }
+
+        return { success: true, message };
     }
 
-    // Passa o turno para o próximo jogador
+    // Check victory condition (someone became Duke)
+    checkVictoryCondition(session, player, io, roomId) {
+        if (player.title === 'duke' && !session.gameEnding) {
+            // Mark that game is ending
+            session.gameEnding = true;
+            session.dukePlayerId = player.id;
+
+            // Notify all that someone became Duke
+            io.to(roomId).emit('dukeAnnounced', {
+                playerId: player.id,
+                playerColor: player.color,
+                message: `${player.color} became Duke! Finishing the round...`
+            });
+
+            return 'You became Duke! The game will end at the end of this round.';
+        }
+        return null;
+    }
+
+    // Calculate player's final score
+    calculateFinalScore(player) {
+        // Accumulated victory points (new cities = 10 points each)
+        let score = player.victoryPoints;
+
+        // Points for remaining resources (silver value)
+        // Each resource is worth 1 point at the end
+        score += player.getTotalResources();
+
+        // Points for title
+        const titlePoints = {
+            baron: 0,
+            viscount: 5,
+            count: 10,
+            marquis: 15,
+            duke: 25
+        };
+        score += titlePoints[player.title] || 0;
+
+        return score;
+    }
+
+    // End game and calculate winner
+    endGame(session, io, roomId) {
+        session.gamePhase = GAME_PHASES.ENDED;
+
+        const players = Object.values(session.players);
+        const scores = players.map(p => ({
+            id: p.id,
+            color: p.color,
+            score: this.calculateFinalScore(p),
+            title: p.getTitleName(),
+            resources: p.getTotalResources(),
+            victoryPoints: p.victoryPoints
+        }));
+
+        // Sort by score (highest first)
+        scores.sort((a, b) => b.score - a.score);
+
+        // In case of tie, winner is furthest from first player
+        // (simplified implementation: maintains current order in case of tie)
+
+        io.to(roomId).emit('gameEnded', {
+            scores,
+            winner: scores[0],
+            message: `Game over! ${scores[0].color} won with ${scores[0].score} points!`
+        });
+
+        console.log(`Game ended in room ${roomId}. Winner: ${scores[0].color}`);
+
+        return scores;
+    }
+
+    // Pass turn to next player
     endTurn(socket, io) {
         const roomId = this.getRoomIdBySocketId(socket.id);
         const session = this.session[roomId];
@@ -686,6 +1063,14 @@ export class Sessions {
         const players = Object.values(session.players);
         const currentIndex = players.findIndex(p => p.id === socket.id);
         const nextIndex = (currentIndex + 1) % players.length;
+
+        // Check if round ended (returned to first player) and game is ending
+        if (session.gameEnding && nextIndex === 0) {
+            // All played, end game
+            this.endGame(session, io, roomId);
+            return;
+        }
+
         session.playerOnTurn = players[nextIndex];
 
         io.to(roomId).emit('turnChanged', {
@@ -696,7 +1081,7 @@ export class Sessions {
         io.to(roomId).emit('drawPlayers', players);
     }
 
-    // Utilitários
+    // Utilities
     isAdjacentToWater(boardState, row, col) {
         const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
 
@@ -724,10 +1109,10 @@ export class Sessions {
 
     getResourceName(resource) {
         const names = {
-            field: 'Campo',
-            forest: 'Floresta',
-            mountain: 'Montanha',
-            plain: 'Planície'
+            field: 'Field',
+            forest: 'Forest',
+            mountain: 'Mountain',
+            plain: 'Plain'
         };
         return names[resource] || resource;
     }
@@ -737,7 +1122,7 @@ export class Sessions {
         io.to(roomId).emit('drawPlayers', Object.values(session.players));
     }
 
-    // Verifica se duas posições são adjacentes
+    // Check if two positions are adjacent
     isAdjacentToPosition(row1, col1, row2, col2) {
         const directions = row1 % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
 
@@ -746,7 +1131,7 @@ export class Sessions {
         });
     }
 
-    // Verifica se a posição é adjacente a alguma cidade existente
+    // Check if position is adjacent to any existing city
     isAdjacentToCity(boardState, row, col) {
         const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
 
@@ -754,13 +1139,13 @@ export class Sessions {
             const newRow = row + dRow;
             const newCol = col + dCol;
 
-            // Verifica limites do tabuleiro
+            // Check board limits
             if (newRow < 0 || newRow >= boardState.length) return false;
             if (newCol < 0 || newCol >= boardState[0].length) return false;
 
             const hex = boardState[newRow][newCol];
 
-            // Verifica se tem uma cidade neste hexágono
+            // Check if there's a city in this hex
             if (hex.pieces && hex.pieces.length > 0) {
                 return hex.pieces.some(piece => piece.type === 'city');
             }
@@ -769,54 +1154,54 @@ export class Sessions {
         });
     }
 
-    // Reinicia o jogo (apenas líder com confirmação do roomId)
+    // Restart game (leader only with roomId confirmation)
     restartGame(socket, io, confirmRoomId) {
         const roomId = this.getRoomIdBySocketId(socket.id);
         const session = this.session[roomId];
 
         if (!session) {
-            return { success: false, message: 'Sala não encontrada!' };
+            return { success: false, message: 'Room not found!' };
         }
 
-        // Apenas o líder pode reiniciar
+        // Only leader can restart
         if (session.leaderId !== socket.id) {
-            return { success: false, message: 'Apenas o líder da sala pode reiniciar!' };
+            return { success: false, message: 'Only the room leader can restart!' };
         }
 
-        // Confirmação: roomId deve coincidir
+        // Confirmation: roomId must match
         if (confirmRoomId !== roomId) {
-            return { success: false, message: 'Código da sala incorreto!' };
+            return { success: false, message: 'Incorrect room code!' };
         }
 
-        // Reseta o tabuleiro
+        // Reset board
         session.boardState = createEmptyBoard(15, 15);
         session.gamePhase = GAME_PHASES.WAITING;
         session.gameStarted = false;
         session.lockedForEntry = false;
 
-        // Reseta o estado de posicionamento inicial
+        // Reset initial placement state
         session.initialPlacementState = {
             placementSequence: [],
             currentSequenceIndex: 0,
             citiesPlacedInTurn: 0
         };
 
-        // Reseta as texturas e peças de todos os jogadores
+        // Reset all players' textures and pieces
         const players = Object.values(session.players);
         players.forEach(player => {
             player.hexCount = new Player(player.id, player.color).hexCount;
             player.pieces = new Player(player.id, player.color).pieces;
         });
 
-        // Define o primeiro jogador como o líder
+        // Define first player as leader
         const leaderPlayer = session.players[session.leaderId];
         session.playerOnTurn = leaderPlayer || players[0];
 
-        // Notifica todos
+        // Notify all
         io.to(roomId).emit('gameRestarted', {
             boardState: session.boardState,
             players: players,
-            message: 'O jogo foi reiniciado!'
+            message: 'The game has been restarted!'
         });
 
         io.to(roomId).emit('createBoard', session.boardState);
@@ -826,12 +1211,12 @@ export class Sessions {
             currentPlayerColor: session.playerOnTurn.color
         });
 
-        console.log(`Jogo reiniciado na sala ${roomId}`);
+        console.log(`Game restarted in room ${roomId}`);
 
-        return { success: true, message: 'Jogo reiniciado com sucesso!' };
+        return { success: true, message: 'Game restarted successfully!' };
     }
 
-    // Função auxiliar para embaralhar array
+    // Helper function to shuffle array
     shuffleArray(array) {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -844,24 +1229,24 @@ export class Sessions {
         const session = this.session[roomId];
 
         if (!session) {
-            socket.emit('error', "Sala não encontrada!");
+            socket.emit('error', "Room not found!");
             return;
         }
 
         if (Object.keys(session.players).length >= 4) {
-            socket.emit('error', "Sala cheia!");
+            socket.emit('error', "Room is full!");
             return;
         }
 
-        // Bloqueia entrada após distribuição aleatória
+        // Block entry after random distribution
         if (session.lockedForEntry) {
-            socket.emit('error', "Entrada bloqueada! O tabuleiro já foi montado.");
+            socket.emit('error', "Entry blocked! The board has already been set up.");
             return;
         }
 
-        // Bloqueia entrada após o jogo começar manualmente
+        // Block entry after game started manually
         if (session.gameStarted) {
-            socket.emit('error', "O jogo já começou! Não é possível entrar.");
+            socket.emit('error', "Game already started! Cannot join.");
             return;
         }
 
@@ -871,14 +1256,14 @@ export class Sessions {
         socket.emit('createBoard', this.session[roomId].boardState);
         socket.emit('drawPlayers', this.session[roomId].players);
 
-        // Envia informação de quem é o turno atual
+        // Send info about whose turn it is
         socket.emit('turnChanged', {
             currentPlayerId: session.playerOnTurn.id,
             currentPlayerColor: session.playerOnTurn.color
         });
     }
 
-    // Remove jogador da sessão (desconexão)
+    // Remove player from session (disconnection)
     removePlayerFromSession(socket, io) {
         const roomId = this.getRoomIdBySocketId(socket.id);
         if (!roomId) return;
@@ -887,30 +1272,57 @@ export class Sessions {
         if (!session) return;
 
         const disconnectedPlayer = session.players[socket.id];
-        const wasCurrentTurn = session.playerOnTurn === disconnectedPlayer;
+        if (!disconnectedPlayer) return;
 
-        // Remove o jogador
+        const wasCurrentTurn = session.playerOnTurn?.id === socket.id;
+
+        // Remove player
         delete session.players[socket.id];
 
         const remainingPlayers = Object.values(session.players);
 
-        // Se não sobrou ninguém, deleta a sessão
+        // If no one left, delete session
         if (remainingPlayers.length === 0) {
             delete this.session[roomId];
-            console.log(`Sessão ${roomId} removida - sem jogadores.`);
+            console.log(`Session ${roomId} removed - no players.`);
             return;
         }
 
-        // Se era o turno do jogador desconectado, passa para o próximo
+        // Update turnOrder if in initial placement phase
+        if (session.initialPlacementState && session.initialPlacementState.turnOrder) {
+            session.initialPlacementState.turnOrder = session.initialPlacementState.turnOrder.filter(
+                p => p.id !== socket.id
+            );
+            // Adjust index if necessary
+            if (session.initialPlacementState.currentTurnIndex >= session.initialPlacementState.turnOrder.length) {
+                session.initialPlacementState.currentTurnIndex = 0;
+            }
+        }
+
+        // If it was disconnected player's turn, pass to next
         if (wasCurrentTurn) {
-            session.playerOnTurn = remainingPlayers[0];
+            // Find next player in order
+            const currentIndex = remainingPlayers.findIndex(p => p.id === session.playerOnTurn?.id);
+            const nextIndex = (currentIndex + 1) % remainingPlayers.length;
+            session.playerOnTurn = remainingPlayers[Math.max(0, nextIndex)] || remainingPlayers[0];
+
             io.to(roomId).emit('turnChanged', {
                 currentPlayerId: session.playerOnTurn.id,
                 currentPlayerColor: session.playerOnTurn.color
             });
+
+            console.log(`Turn passed to ${session.playerOnTurn.color} after disconnection`);
         }
 
-        // Notifica os outros jogadores
+        // If leader left, promote another player
+        if (session.leaderId === socket.id) {
+            session.leaderId = remainingPlayers[0].id;
+            console.log(`New leader: ${remainingPlayers[0].color}`);
+            // Notify new leader
+            io.to(session.leaderId).emit('youAreLeader');
+        }
+
+        // Notify other players
         io.to(roomId).emit('playerDisconnected', {
             playerId: socket.id,
             playerColor: disconnectedPlayer.color,
@@ -919,7 +1331,7 @@ export class Sessions {
 
         io.to(roomId).emit('drawPlayers', remainingPlayers);
 
-        console.log(`Jogador ${disconnectedPlayer.color} desconectou da sala ${roomId}`);
+        console.log(`Player ${disconnectedPlayer.color} disconnected from room ${roomId}`);
     }
 
     applyTextureToBoard(socket, io, payload) {
@@ -927,13 +1339,13 @@ export class Sessions {
         const session = this.session[roomId];
 
         if (!session) {
-            return { success: false, error: 'ROOM_NOT_FOUND', message: 'Sala não encontrada!' };
+            return { success: false, error: 'ROOM_NOT_FOUND', message: 'Room not found!' };
         }
 
-        // Bloqueia colocação manual de texturas - apenas o líder pode distribuir quando houver 4 jogadores
+        // Block manual texture placement - only leader can distribute when there are 4 players
         const players = Object.values(session.players);
         if (players.length < 4) {
-            return { success: false, error: 'NOT_ENOUGH_PLAYERS', message: 'Aguarde 4 jogadores para iniciar!' };
+            return { success: false, error: 'NOT_ENOUGH_PLAYERS', message: 'Wait for 4 players to start!' };
         }
 
         const { row, col, texture } = payload;
@@ -942,52 +1354,52 @@ export class Sessions {
 
         // Validação: é o turno do jogador?
         if (session.playerOnTurn !== player) {
-            return { success: false, error: 'NOT_YOUR_TURN', message: 'Não é seu turno!' };
+            return { success: false, error: 'NOT_YOUR_TURN', message: 'Not your turn!' };
         }
 
-        // Validação: jogador tem texturas disponíveis?
+        // Validation: does player have textures available?
         if (player.hexCount[textureType] <= 0) {
-            return { success: false, error: 'NO_TEXTURES', message: 'Você não tem mais dessa textura!' };
+            return { success: false, error: 'NO_TEXTURES', message: 'You have no more of this texture!' };
         }
 
-        // Validação: hexágono já tem textura?
+        // Validation: does hex already have texture?
         const hex = session.boardState[row][col];
         if (hex.texture !== null) {
-            return { success: false, error: 'HEX_OCCUPIED', message: 'Este hexágono já possui uma textura!' };
+            return { success: false, error: 'HEX_OCCUPIED', message: 'This hex already has a texture!' };
         }
 
-        // Validação: adjacência (se já existe alguma textura no tabuleiro)
+        // Validation: adjacency (if textures exist on board)
         if (this.hasAnyTexture(session.boardState) && !this.isAdjacentToTexture(session.boardState, row, col)) {
-            return { success: false, error: 'NOT_ADJACENT', message: 'A textura deve ser adjacente a uma textura existente!' };
+            return { success: false, error: 'NOT_ADJACENT', message: 'Texture must be adjacent to an existing texture!' };
         }
 
-        // Aplica a textura
+        // Apply texture
         hex.texture = texture;
         player.hexCount[textureType]--;
 
-        // Marca que o jogo começou
+        // Mark that game started
         if (!session.gameStarted) {
             session.gameStarted = true;
             session.gamePhase = 'placement';
         }
 
-        // Emite atualizações
+        // Emit updates
         io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
         io.to(roomId).emit('updatePlayerPieces', player);
 
-        // Próximo jogador no turno
+        // Next player's turn
         const playersList = Object.values(session.players);
         const currentIndex = playersList.indexOf(session.playerOnTurn);
         const nextIndex = (currentIndex + 1) % playersList.length;
         session.playerOnTurn = playersList[nextIndex];
 
-        // Emite evento de mudança de turno
+        // Emit turn change event
         io.to(roomId).emit('turnChanged', {
             currentPlayerId: session.playerOnTurn.id,
             currentPlayerColor: session.playerOnTurn.color
         });
 
-        // Verifica se a fase de placement terminou
+        // Check if placement phase ended
         const phaseEnded = this.checkPlacementPhaseEnd(session);
         if (phaseEnded) {
             session.gamePhase = 'battle';
@@ -997,12 +1409,12 @@ export class Sessions {
         return { success: true };
     }
 
-    // Verifica se existe alguma textura no tabuleiro
+    // Check if any texture exists on board
     hasAnyTexture(boardState) {
         return boardState.some(row => row.some(hex => hex.texture !== null));
     }
 
-    // Verifica se a posição é adjacente a uma textura existente
+    // Check if position is adjacent to existing texture
     isAdjacentToTexture(boardState, row, col) {
         const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
 
@@ -1010,7 +1422,7 @@ export class Sessions {
             const newRow = row + dRow;
             const newCol = col + dCol;
 
-            // Verifica limites do tabuleiro
+            // Check board limits
             if (newRow < 0 || newRow >= boardState.length) return false;
             if (newCol < 0 || newCol >= boardState[0].length) return false;
 
@@ -1018,7 +1430,7 @@ export class Sessions {
         });
     }
 
-    // Verifica se todos os jogadores usaram todas as texturas
+    // Check if all players used all textures
     checkPlacementPhaseEnd(session) {
         const players = Object.values(session.players);
         return players.every(player => {

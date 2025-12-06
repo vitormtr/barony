@@ -1,11 +1,11 @@
 // Títulos de nobreza em ordem
 const NOBLE_TITLES = ['baron', 'viscount', 'count', 'marquis', 'duke'];
 const TITLE_NAMES = {
-    baron: 'Barão',
-    viscount: 'Visconde',
-    count: 'Conde',
-    marquis: 'Marquês',
-    duke: 'Duque'
+    baron: 'Baron',
+    viscount: 'Viscount',
+    count: 'Count',
+    marquis: 'Marquis',
+    duke: 'Duke'
 };
 
 export class Player {

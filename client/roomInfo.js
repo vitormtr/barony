@@ -1,4 +1,4 @@
-// Módulo para exibir informações da sala
+// Module for displaying room information
 import { showSuccess, showInfo } from './notifications.js';
 
 let roomInfoElement = null;
@@ -11,13 +11,13 @@ export function showRoomInfo(roomId) {
     roomInfoElement = document.createElement('div');
     roomInfoElement.id = 'room-info';
     roomInfoElement.innerHTML = `
-      <span class="label">Sala</span>
-      <span class="room-id" title="Clique para copiar">${roomId}</span>
-      <span class="copy-hint">clique para copiar</span>
+      <span class="label">Room</span>
+      <span class="room-id" title="Click to copy">${roomId}</span>
+      <span class="copy-hint">click to copy</span>
     `;
     document.body.appendChild(roomInfoElement);
 
-    // Evento de clique para copiar
+    // Click event to copy
     const roomIdSpan = roomInfoElement.querySelector('.room-id');
     roomIdSpan.addEventListener('click', copyRoomId);
   } else {
@@ -31,16 +31,16 @@ async function copyRoomId() {
 
   try {
     await navigator.clipboard.writeText(currentRoomId);
-    showSuccess('Código da sala copiado!');
+    showSuccess('Room code copied!');
 
-    // Feedback visual
+    // Visual feedback
     const roomIdSpan = roomInfoElement.querySelector('.room-id');
     roomIdSpan.style.background = 'rgba(76, 175, 80, 0.3)';
     setTimeout(() => {
       roomIdSpan.style.background = '';
     }, 300);
   } catch (err) {
-    // Fallback para navegadores mais antigos
+    // Fallback for older browsers
     const textArea = document.createElement('textarea');
     textArea.value = currentRoomId;
     textArea.style.position = 'fixed';
@@ -49,7 +49,7 @@ async function copyRoomId() {
     textArea.select();
     document.execCommand('copy');
     document.body.removeChild(textArea);
-    showSuccess('Código da sala copiado!');
+    showSuccess('Room code copied!');
   }
 }
 

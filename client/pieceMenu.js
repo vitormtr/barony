@@ -1,4 +1,4 @@
-// Módulo para menu de seleção de peças (fase de posicionamento inicial)
+// Module for piece selection menu (initial placement phase)
 import { socket, player, emitRequestPlayerData } from "./ClientSocketEvents.js";
 import { showError, showSuccess, showWarning, showInfo } from "./notifications.js";
 import { isMyTurn, getLocalPlayerId } from "./turnIndicator.js";
@@ -15,7 +15,7 @@ export function setPhase(phase) {
 }
 
 export function setPlacementStep(step) {
-  // Mantido por compatibilidade, mas não é mais usado
+  // Kept for compatibility, but no longer used
   updatePhaseIndicator();
 }
 
@@ -25,14 +25,14 @@ export function setCitiesRemaining(count) {
 }
 
 export function setCityPosition(pos) {
-  // Mantido por compatibilidade, mas não é mais usado
+  // Kept for compatibility, but no longer used
 }
 
 export function getCurrentPhase() {
   return currentPhase;
 }
 
-// Cria ou atualiza o indicador de fase
+// Create or update phase indicator
 function updatePhaseIndicator() {
   if (!phaseIndicatorElement) {
     phaseIndicatorElement = document.createElement('div');
@@ -44,13 +44,10 @@ function updatePhaseIndicator() {
   let subMessage = '';
 
   if (currentPhase === 'initialPlacement') {
-    message = `Coloque sua Cidade (${citiesRemaining} restante${citiesRemaining > 1 ? 's' : ''})`;
-    subMessage = 'Planície ou Campo - Cavaleiro adicionado automaticamente';
-  } else if (currentPhase === 'battle') {
-    message = 'Fase de Batalha';
-    subMessage = 'O jogo começou!';
+    message = `Place your City (${citiesRemaining} remaining)`;
+    subMessage = 'Plain or Field - Knight added automatically';
   } else {
-    message = 'Aguardando...';
+    message = 'Waiting...';
     subMessage = '';
   }
 
@@ -59,47 +56,48 @@ function updatePhaseIndicator() {
     ${subMessage ? `<div class="phase-submessage">${subMessage}</div>` : ''}
   `;
 
-  phaseIndicatorElement.style.display = currentPhase === 'initialPlacement' || currentPhase === 'battle' ? 'block' : 'none';
+  // Only show during initial placement phase, hide during battle
+  phaseIndicatorElement.style.display = currentPhase === 'initialPlacement' ? 'block' : 'none';
 }
 
-// Mostra o menu de peças ao clicar em um hexágono
+// Show piece menu when clicking a hex
 export function showPieceMenu(hex) {
   if (currentPhase !== 'initialPlacement') {
     return;
   }
 
-  // Verifica se é o turno do jogador
+  // Check if it's player's turn
   if (!isMyTurn()) {
-    showWarning('Não é seu turno!');
+    showWarning('Not your turn!');
     return;
   }
 
   const hexData = JSON.parse(hex.dataset.hex);
 
-  // Verifica se o hexágono tem textura
+  // Check if hex has texture
   if (!hexData.texture) {
-    showWarning('Selecione um hexágono com textura!');
+    showWarning('Select a hex with texture!');
     return;
   }
 
-  // Verifica se o hexágono já está ocupado
+  // Check if hex is already occupied
   if (hexData.pieces && hexData.pieces.length > 0) {
-    showWarning('Este hexágono já está ocupado!');
+    showWarning('This hex is already occupied!');
     return;
   }
 
-  // Validação de terreno para cidade (apenas planície e campo)
+  // Terrain validation for city (only plain and field)
   const validCityTerrains = ['plain.png', 'farm.png'];
   if (!validCityTerrains.includes(hexData.texture)) {
-    showError('Cidades só podem ser colocadas em planície ou campo!');
+    showError('Cities can only be placed on plain or field!');
     return;
   }
 
-  // Mostra o menu de confirmação
+  // Show confirmation menu
   showPieceConfirmation(hex);
 }
 
-// Mostra diálogo de confirmação para colocar a cidade
+// Show confirmation dialog to place city
 function showPieceConfirmation(hex) {
   if (pieceMenuElement) {
     pieceMenuElement.remove();
@@ -114,16 +112,16 @@ function showPieceConfirmation(hex) {
   pieceMenuElement.innerHTML = `
     <div class="piece-menu-content">
       <div class="piece-icon city"></div>
-      <div class="piece-name">Cidade + Cavaleiro</div>
-      <div class="piece-count">Cidades: ${cityCount} | Cavaleiros: ${knightCount}</div>
-      <button id="confirmPieceBtn" class="piece-btn confirm">Confirmar</button>
-      <button id="cancelPieceBtn" class="piece-btn cancel">Cancelar</button>
+      <div class="piece-name">City + Knight</div>
+      <div class="piece-count">Cities: ${cityCount} | Knights: ${knightCount}</div>
+      <button id="confirmPieceBtn" class="piece-btn confirm">Confirm</button>
+      <button id="cancelPieceBtn" class="piece-btn cancel">Cancel</button>
     </div>
   `;
 
   document.body.appendChild(pieceMenuElement);
 
-  // Posiciona perto do hexágono
+  // Position near hex
   const rect = hex.getBoundingClientRect();
   pieceMenuElement.style.left = `${rect.left + rect.width / 2}px`;
   pieceMenuElement.style.top = `${rect.top - 10}px`;
@@ -137,7 +135,7 @@ function showPieceConfirmation(hex) {
     hidePieceMenu();
   });
 
-  // Fechar ao clicar fora
+  // Close on click outside
   setTimeout(() => {
     document.addEventListener('click', handleClickOutsidePieceMenu);
   }, 100);
@@ -157,10 +155,10 @@ function hidePieceMenu() {
   document.removeEventListener('click', handleClickOutsidePieceMenu);
 }
 
-// Envia a requisição para colocar a cidade (cavaleiro é automático)
+// Send request to place city (knight is automatic)
 function placePiece(hex) {
   if (isProcessing) {
-    showWarning('Aguarde a ação anterior ser processada...');
+    showWarning('Wait for previous action to be processed...');
     return;
   }
 
@@ -182,23 +180,23 @@ function placePiece(hex) {
     hidePieceMenu();
 
     if (result && result.success) {
-      showSuccess('Cidade + Cavaleiro colocados!');
+      showSuccess('City + Knight placed!');
       emitRequestPlayerData();
     } else {
-      showError(result?.message || 'Falha ao colocar a cidade.');
+      showError(result?.message || 'Failed to place city.');
     }
   };
 
   socket.once('placePieceResult', resultHandler);
 
-  // Timeout de segurança (aumentado para 10 segundos)
+  // Safety timeout (increased to 10 seconds)
   setTimeout(() => {
     if (isProcessing) {
-      console.log('Timeout atingido - removendo listener');
+      console.log('Timeout reached - removing listener');
       socket.off('placePieceResult', resultHandler);
       isProcessing = false;
       showLoadingOverlay(false);
-      showError('Tempo esgotado. Tente novamente.');
+      showError('Timeout. Try again.');
     }
   }, 10000);
 }
@@ -222,7 +220,7 @@ function showLoadingOverlay(show) {
   }
 }
 
-// Reseta o estado quando o jogo reinicia
+// Reset state when game restarts
 export function resetPlacementState() {
   currentPhase = 'waiting';
   citiesRemaining = 3;
@@ -231,7 +229,7 @@ export function resetPlacementState() {
   updatePhaseIndicator();
 }
 
-// Adiciona handler de clique nos hexágonos para a fase de posicionamento
+// Add click handler on hexes for placement phase
 export function addPieceClickHandler() {
   document.querySelectorAll('.hexagon').forEach(hex => {
     hex.addEventListener('click', handleHexClickForPiece);

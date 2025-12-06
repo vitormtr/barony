@@ -27,8 +27,8 @@ const validatePayload = (payload, requiredFields) => {
 
 export function handleSocketEvents(socket, io, sessionManager) {
   const handleError = (error, event, meta = {}) => {
-    logger.error(`Erro no evento ${event}`, { error, ...meta });
-    socket.emit(SOCKET_EVENTS.ERROR, { 
+    logger.error(`Error in event ${event}`, { error, ...meta });
+    socket.emit(SOCKET_EVENTS.ERROR, {
       event,
       message: error.message,
       code: error.code || 'INTERNAL_ERROR'
@@ -37,11 +37,11 @@ export function handleSocketEvents(socket, io, sessionManager) {
 
   const handleCreateRoom = () => {
     try {
-      logger.info('Iniciando criação de sala', { socketId: socket.id });
+      logger.info('Starting room creation', { socketId: socket.id });
       const roomId = sessionManager.createSession(socket, io);
-      logger.info('Sala criada com sucesso', { roomId, socketId: socket.id });
+      logger.info('Room created successfully', { roomId, socketId: socket.id });
 
-      // Envia o roomId junto com os dados do jogador (criador é o líder)
+      // Send roomId along with player data (creator is the leader)
       const playerData = sessionManager.getPlayer(socket.id);
       socket.emit('roomCreated', { roomId, player: playerData, isLeader: true });
       io.to(roomId).emit(SOCKET_EVENTS.PLAYER_JOINED_ROOM, playerData);
@@ -52,19 +52,19 @@ export function handleSocketEvents(socket, io, sessionManager) {
 
   const handleJoinRoom = (roomId) => {
     try {
-      if (!roomId) throw new Error('ID da sala não fornecido');
+      if (!roomId) throw new Error('Room ID not provided');
 
-      logger.info('Jogador entrando na sala', { roomId, socketId: socket.id });
+      logger.info('Player joining room', { roomId, socketId: socket.id });
       sessionManager.addPlayerToSession(socket, io, roomId);
 
       const players = sessionManager.getPlayersInRoom(roomId);
       const playerData = sessionManager.getPlayer(socket.id);
 
-      // Se o jogador foi adicionado com sucesso
+      // If player was added successfully
       if (playerData) {
-        logger.info('Jogadores atualizados na sala', { roomId, playersCount: players.length });
+        logger.info('Players updated in room', { roomId, playersCount: players.length });
 
-        // Envia o roomId para o jogador que entrou
+        // Send roomId to the player who joined
         socket.emit('roomJoined', { roomId, player: playerData });
 
         io.to(roomId).emit(SOCKET_EVENTS.DRAW_PLAYERS, players);
@@ -79,10 +79,10 @@ export function handleSocketEvents(socket, io, sessionManager) {
     try {
       const requiredFields = ['row', 'col', 'texture'];
       if (!validatePayload(payload, requiredFields)) {
-        throw new Error('Payload inválido');
+        throw new Error('Invalid payload');
       }
 
-      logger.info('Aplicando textura ao tabuleiro', { payload, socketId: socket.id });
+      logger.info('Applying texture to board', { payload, socketId: socket.id });
       const result = sessionManager.applyTextureToBoard(socket, io, payload);
 
       socket.emit(SOCKET_EVENTS.TEXTURE_APPLIED, result);
@@ -102,7 +102,7 @@ export function handleSocketEvents(socket, io, sessionManager) {
   const handleRequestPlayerData = (socketId) => {
     const player = sessionManager.getPlayer(socketId);
     if (!player) {
-      logger.error('Jogador não encontrado', { socketId: socket.id });
+      logger.error('Player not found', { socketId: socket.id });
       return;
     }
     const playerObj = new Player(player.id, player.color, player.hexCount, player.pieces);
@@ -111,18 +111,18 @@ export function handleSocketEvents(socket, io, sessionManager) {
   }
 
   const handleDisconnect = () => {
-    logger.info('Jogador desconectado', { socketId: socket.id });
+    logger.info('Player disconnected', { socketId: socket.id });
     sessionManager.removePlayerFromSession(socket, io);
   };
 
-  // Handler para distribuição aleatória de texturas (apenas líder)
+  // Handler for random texture distribution (leader only)
   const handleRandomDistribution = () => {
     try {
-      logger.info('Solicitação de distribuição aleatória', { socketId: socket.id });
+      logger.info('Random distribution request', { socketId: socket.id });
       const result = sessionManager.randomDistribution(socket, io);
 
       if (result.success) {
-        logger.info('Distribuição aleatória concluída');
+        logger.info('Random distribution completed');
       } else {
         socket.emit(SOCKET_EVENTS.ERROR, result.message);
       }
@@ -131,10 +131,10 @@ export function handleSocketEvents(socket, io, sessionManager) {
     }
   };
 
-  // Handler para reiniciar o jogo (apenas líder com confirmação)
+  // Handler to restart game (leader only with confirmation)
   const handleRestartGame = (confirmRoomId) => {
     try {
-      logger.info('Solicitação de reinício do jogo', { socketId: socket.id, confirmRoomId });
+      logger.info('Game restart request', { socketId: socket.id, confirmRoomId });
       const result = sessionManager.restartGame(socket, io, confirmRoomId);
 
       socket.emit('restartResult', result);
@@ -147,13 +147,13 @@ export function handleSocketEvents(socket, io, sessionManager) {
     }
   };
 
-  // Handler para colocar peça na fase de posicionamento inicial
+  // Handler to place piece in initial placement phase
   const handlePlacePiece = (payload) => {
     try {
-      logger.info('Solicitação de colocação de peça', { socketId: socket.id, payload });
+      logger.info('Piece placement request', { socketId: socket.id, payload });
       const result = sessionManager.placePiece(socket, io, payload);
 
-      logger.info('Resultado da colocação de peça', { socketId: socket.id, result });
+      logger.info('Piece placement result', { socketId: socket.id, result });
       socket.emit('placePieceResult', result);
 
       if (!result.success) {
@@ -161,28 +161,42 @@ export function handleSocketEvents(socket, io, sessionManager) {
       }
     } catch (error) {
       handleError(error, 'placePiece', { payload });
-      // Garante que o cliente receba uma resposta mesmo em caso de erro
-      socket.emit('placePieceResult', { success: false, message: 'Erro interno do servidor' });
+      // Ensure client receives a response even in case of error
+      socket.emit('placePieceResult', { success: false, message: 'Internal server error' });
     }
   };
 
-  // Handler para ações da fase de batalha
+  // Handler for battle phase actions
   const handleBattleAction = (payload) => {
     try {
-      logger.info('Ação de batalha recebida', { socketId: socket.id, action: payload.action });
-      sessionManager.battleAction(socket, io, payload);
+      logger.info('Battle action received', { socketId: socket.id, action: payload.action });
+      const result = sessionManager.battleAction(socket, io, payload);
+      logger.info('Battle action result', { socketId: socket.id, result });
+      socket.emit('battleActionResult', result);
     } catch (error) {
       handleError(error, 'battleAction', { payload });
+      socket.emit('battleActionResult', { success: false, message: 'Internal server error' });
     }
   };
 
-  // Handler para encerrar turno
+  // Handler to end turn
   const handleEndTurn = () => {
     try {
-      logger.info('Encerrando turno', { socketId: socket.id });
+      logger.info('Ending turn', { socketId: socket.id });
       sessionManager.endTurn(socket, io);
     } catch (error) {
       handleError(error, 'endTurn');
+    }
+  };
+
+  // Handler to skip directly to battle phase (TEST)
+  const handleSkipToBattle = () => {
+    try {
+      logger.info('[TEST] Skip to battle request', { socketId: socket.id });
+      const result = sessionManager.skipToBattlePhase(socket, io);
+      socket.emit('skipToBattleResult', result);
+    } catch (error) {
+      handleError(error, 'skipToBattle');
     }
   };
 
@@ -197,4 +211,5 @@ export function handleSocketEvents(socket, io, sessionManager) {
   socket.on('placePiece', handlePlacePiece);
   socket.on('battleAction', handleBattleAction);
   socket.on('endTurn', handleEndTurn);
+  socket.on('skipToBattle', handleSkipToBattle);
 }

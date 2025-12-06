@@ -8,7 +8,7 @@ let isProcessing = false;
 let textureMenuEnabled = true;
 
 export async function showTextureMenu(hex) {
-  // Não mostrar menu de texturas se estiver desabilitado ou em outra fase
+  // Don't show texture menu if disabled or in another phase
   if (!textureMenuEnabled || getCurrentPhase() !== 'waiting') {
     return;
   }
@@ -30,12 +30,12 @@ export async function showTextureMenu(hex) {
   menu.style.display = 'flex';
 }
 
-// Função unificada para atualizar contagem e estado de uma opção
+// Unified function to update option count and state
 function updateOptionState(option, textureName) {
   const textureKey = textureName.replace('.png', '');
   const count = player?.hexCount?.[textureKey] || 0;
 
-  // Atualiza label de contagem
+  // Update count label
   let label = option.querySelector('.hex-count');
   if (!label) {
     label = document.createElement('span');
@@ -44,7 +44,7 @@ function updateOptionState(option, textureName) {
   }
   label.textContent = count;
 
-  // Desabilita se não tem mais dessa textura
+  // Disable if no more of this texture
   if (count <= 0) {
     option.classList.add('disabled');
   } else {
@@ -85,45 +85,45 @@ function createTextureOption(textureFile, hex) {
 
 function createTextureClickHandler(hex, texture) {
   return () => {
-    // Verifica se está processando uma requisição
+    // Check if processing a request
     if (isProcessing) {
-      showWarning('Aguarde a ação anterior ser processada...');
+      showWarning('Wait for previous action to be processed...');
       return;
     }
 
-    // Verifica se a textura está desabilitada
+    // Check if texture is disabled
     const textureKey = texture.replace('.png', '');
     if ((player?.hexCount?.[textureKey] || 0) <= 0) {
-      showError('Você não tem mais dessa textura!');
+      showError('You have no more of this texture!');
       return;
     }
 
-    // Validação local (antes de enviar ao servidor)
+    // Local validation (before sending to server)
     if (!validateTexturePlacement(hex)) return;
 
     requestTexturePlacement(hex, texture);
   };
 }
 
-// Função simplificada para atualizar labels (usa updateOptionState internamente)
+// Simplified function to update labels (uses updateOptionState internally)
 export function updateCountLabel(playerData) {
   updateAllOptionCounts();
 }
 
 function validateTexturePlacement(hex) {
-  // Verifica se é o turno do jogador
+  // Check if it's player's turn
   if (!isMyTurn()) {
-    showWarning('Não é seu turno!');
+    showWarning('Not your turn!');
     return false;
   }
 
   if (getHexTexture(hex) !== null) {
-    showError('Este hexágono já possui uma textura!');
+    showError('This hex already has a texture!');
     return false;
   }
 
   if (hasAnyTexturedHex() && !isAdjacentToTexturedHex(hex)) {
-    showError('A textura deve ser adjacente a uma textura existente!');
+    showError('Texture must be adjacent to an existing texture!');
     return false;
   }
 
@@ -137,13 +137,13 @@ function requestTexturePlacement(hex, texture) {
     texture
   };
 
-  // Ativa loading state
+  // Activate loading state
   isProcessing = true;
   showLoadingOverlay(true);
 
   socket.emit('applyTextureToBoard', payload);
   socket.once('textureApplied', (result) => {
-    // Desativa loading state
+    // Deactivate loading state
     isProcessing = false;
     showLoadingOverlay(false);
 
@@ -152,12 +152,12 @@ function requestTexturePlacement(hex, texture) {
     updateAllOptionCounts();
   });
 
-  // Timeout de segurança
+  // Safety timeout
   setTimeout(() => {
     if (isProcessing) {
       isProcessing = false;
       showLoadingOverlay(false);
-      showError('Tempo esgotado. Tente novamente.');
+      showError('Timeout. Try again.');
     }
   }, 5000);
 }
@@ -166,10 +166,10 @@ function handleTextureApplication(result, textureUsed) {
   if (result.success) {
     emitUpdatePlayerTexture(textureUsed);
     hideTextureMenu();
-    showSuccess('Textura aplicada!');
+    showSuccess('Texture applied!');
   } else {
-    // Mostra mensagem de erro do servidor
-    showError(result.message || 'Falha ao aplicar a textura.');
+    // Show server error message
+    showError(result.message || 'Failed to apply texture.');
   }
 }
 
@@ -253,21 +253,21 @@ function hideTextureMenu() {
   menu && (menu.style.display = 'none');
 }
 
-// Desabilita o menu de texturas (usado quando a fase de construção termina)
+// Disable texture menu (used when construction phase ends)
 export function disableTextureMenu() {
   textureMenuEnabled = false;
   hideTextureMenu();
 
-  // Remove seleção dos hexágonos
+  // Remove hex selection
   document.querySelectorAll('.hexagon').forEach(h => h.classList.remove('selected'));
 }
 
-// Reabilita o menu de texturas (usado quando o jogo reinicia)
+// Re-enable texture menu (used when game restarts)
 export function enableTextureMenu() {
   textureMenuEnabled = true;
 }
 
-// Mostra a transição de fim da construção do tabuleiro
+// Show board completion transition
 export function showBoardCompleteTransition(callback) {
   const overlay = document.createElement('div');
   overlay.id = 'phase-transition-overlay';
@@ -275,20 +275,20 @@ export function showBoardCompleteTransition(callback) {
   overlay.innerHTML = `
     <div class="phase-transition-content">
       <div class="phase-transition-icon">🏰</div>
-      <h2 class="phase-transition-title">Tabuleiro Construído!</h2>
-      <p class="phase-transition-subtitle">Prepare-se para posicionar suas cidades e cavaleiros</p>
+      <h2 class="phase-transition-title">Board Built!</h2>
+      <p class="phase-transition-subtitle">Get ready to place your cities and knights</p>
       <div class="phase-transition-progress"></div>
     </div>
   `;
 
   document.body.appendChild(overlay);
 
-  // Animação de entrada
+  // Entry animation
   requestAnimationFrame(() => {
     overlay.classList.add('visible');
   });
 
-  // Remove após 3 segundos
+  // Remove after 3 seconds
   setTimeout(() => {
     overlay.classList.remove('visible');
     overlay.classList.add('hiding');

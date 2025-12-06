@@ -1,10 +1,10 @@
-// Módulo para mostrar a cor do jogador
+// Module for displaying player color
 
 const COLOR_NAMES = {
-  red: 'Vermelho',
-  blue: 'Azul',
-  green: 'Verde',
-  yellow: 'Amarelo'
+  red: 'Red',
+  blue: 'Blue',
+  green: 'Green',
+  yellow: 'Yellow'
 };
 
 const COLOR_HEX = {
@@ -28,12 +28,12 @@ export function showPlayerColor(color) {
 
   colorIndicator.innerHTML = `
     <div class="color-badge" style="background: ${colorHex}"></div>
-    <span class="color-label">Você é o jogador <strong>${colorName}</strong></span>
+    <span class="color-label">You are the <strong>${colorName}</strong> player</span>
   `;
 
   colorIndicator.style.display = 'flex';
 
-  // Adiciona classe para animação
+  // Add class for animation
   colorIndicator.classList.remove('fade-in');
   void colorIndicator.offsetWidth; // Force reflow
   colorIndicator.classList.add('fade-in');

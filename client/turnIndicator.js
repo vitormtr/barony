@@ -1,4 +1,4 @@
-// Módulo para gerenciar indicador de turno
+// Module for turn indicator management
 import { showInfo } from './notifications.js';
 
 let turnIndicator = null;
@@ -6,10 +6,10 @@ let currentTurnPlayerId = null;
 let localPlayerId = null;
 
 const COLOR_NAMES = {
-  red: 'Vermelho',
-  blue: 'Azul',
-  green: 'Verde',
-  yellow: 'Amarelo'
+  red: 'Red',
+  blue: 'Blue',
+  green: 'Green',
+  yellow: 'Yellow'
 };
 
 function getOrCreateTurnIndicator() {
@@ -21,7 +21,7 @@ function getOrCreateTurnIndicator() {
   return turnIndicator;
 }
 
-// Chamado quando o jogador local é definido
+// Called when local player is defined
 export function setLocalPlayer(playerId) {
   localPlayerId = playerId;
 }
@@ -33,31 +33,31 @@ export function updateTurnIndicator(turnData) {
   const indicator = getOrCreateTurnIndicator();
   const isYourTurn = localPlayerId && localPlayerId === currentPlayerId;
 
-  // Remove classes antigas
+  // Remove old classes
   indicator.classList.remove('red', 'blue', 'green', 'yellow', 'your-turn');
 
-  // Adiciona classe da cor atual
+  // Add current color class
   indicator.classList.add(currentPlayerColor);
 
   if (isYourTurn) {
     indicator.classList.add('your-turn');
-    indicator.textContent = '🎯 Seu turno!';
-    showInfo('É a sua vez de jogar!');
+    indicator.textContent = '🎯 Your turn!';
+    showInfo('It\'s your turn to play!');
   } else {
-    indicator.textContent = `Vez do jogador ${COLOR_NAMES[currentPlayerColor] || currentPlayerColor}`;
+    indicator.textContent = `${COLOR_NAMES[currentPlayerColor] || currentPlayerColor}'s turn`;
   }
 
-  // Atualiza destaque na HUD
+  // Update highlight in HUD
   updatePlayerHighlight(currentPlayerId);
 }
 
 function updatePlayerHighlight(currentPlayerId) {
-  // Remove destaque de todos os jogadores
+  // Remove highlight from all players
   document.querySelectorAll('.player').forEach(playerEl => {
     playerEl.classList.remove('current-turn');
   });
 
-  // Adiciona destaque ao jogador atual
+  // Add highlight to current player
   const playerElements = document.querySelectorAll('.player');
   playerElements.forEach(playerEl => {
     const playerId = playerEl.dataset.playerId;

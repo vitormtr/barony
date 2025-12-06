@@ -3,7 +3,7 @@ import { addClickEventToHexagons, closeMenuOnClickOutside } from "./texture-menu
 import { domHelper } from "./domUtils.js";
 import { CONFIG } from "./config.js";
 
-const ERROR_MESSAGE = "Erro: hexContainer não encontrado!";
+const ERROR_MESSAGE = "Error: hexContainer not found!";
 
 export function destroyBoard() {
   const container = domHelper.get(CONFIG.SELECTORS.HEX_CONTAINER);
@@ -75,32 +75,32 @@ function updateHexElement(row, col, hexData) {
         : ''
     );
 
-    // Renderiza as peças se existirem
+    // Render pieces if they exist
     renderPieces(element, hexData.pieces);
   } catch (error) {
-    console.error(`Erro ao atualizar hexágono [${row},${col}]:`, error);
+    console.error(`Error updating hex [${row},${col}]:`, error);
   }
 }
 
 function renderPieces(element, pieces) {
-  // Remove peças existentes
+  // Remove existing pieces
   element.querySelectorAll('.piece').forEach(p => p.remove());
   const existingContainer = element.querySelector('.pieces-container');
   if (existingContainer) existingContainer.remove();
 
-  // Se não há peças, retorna
+  // If no pieces, return
   if (!pieces || pieces.length === 0) return;
 
-  // Separa estruturas e cavaleiros
+  // Separate structures and knights
   const structure = pieces.find(p => ['city', 'stronghold', 'village'].includes(p.type));
   const knights = pieces.filter(p => p.type === 'knight');
 
-  // Container para as peças
+  // Container for pieces
   const container = document.createElement('div');
   container.className = 'pieces-container';
   element.appendChild(container);
 
-  // Renderiza a estrutura (cidade, fortaleza ou vila)
+  // Render the structure (city, stronghold or village)
   if (structure) {
     const structureElement = document.createElement('div');
     structureElement.className = `piece piece-${structure.type} piece-${structure.color}`;
@@ -108,7 +108,7 @@ function renderPieces(element, pieces) {
     container.appendChild(structureElement);
   }
 
-  // Agrupa cavaleiros por cor
+  // Group knights by color
   if (knights.length > 0) {
     const knightsByColor = {};
     knights.forEach(k => {
@@ -120,7 +120,7 @@ function renderPieces(element, pieces) {
     const totalKnights = Math.min(knights.length, 3);
     knightsContainer.className = `knights-container knights-${totalKnights}`;
 
-    // Mostra até 3 cavaleiros total, priorizando variedade de cores
+    // Show up to 3 knights total, prioritizing color variety
     let knightsShown = 0;
     const colors = Object.keys(knightsByColor);
     let colorIndex = 0;
@@ -131,12 +131,12 @@ function renderPieces(element, pieces) {
         const knight = knightsByColor[color].shift();
         const knightElement = document.createElement('div');
         knightElement.className = `piece piece-knight piece-${knight.color}`;
-        knightElement.title = `Cavaleiro - ${knight.color}`;
+        knightElement.title = `Knight - ${knight.color}`;
         knightsContainer.appendChild(knightElement);
         knightsShown++;
       }
       colorIndex++;
-      // Evita loop infinito se todas as cores estão vazias
+      // Avoid infinite loop if all colors are empty
       if (colorIndex > colors.length * 3) break;
     }
 
@@ -146,9 +146,9 @@ function renderPieces(element, pieces) {
 
 function getStructureName(type) {
   const names = {
-    city: 'Cidade',
-    stronghold: 'Fortaleza',
-    village: 'Vila'
+    city: 'City',
+    stronghold: 'Stronghold',
+    village: 'Village'
   };
   return names[type] || type;
 }
