@@ -980,46 +980,45 @@ button:active {
   text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
 }
 
-/* Container de cavaleiros */
+/* Container de cavaleiros - empilhados horizontalmente */
 .knights-container {
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  gap: 2px;
-  max-width: 60px;
+  position: relative;
+  min-width: 30px;
 }
 
-/* 1 cavaleiro - centralizado */
-.knights-container.knights-1 {
-  justify-content: center;
+/* Cavaleiros empilhados com sobreposição */
+.knights-container .piece-knight {
+  position: relative;
+  margin-left: -12px;
+  box-shadow: -2px 0 4px rgba(0,0,0,0.4);
+  z-index: 1;
 }
 
-/* 2 cavaleiros - lado a lado */
-.knights-container.knights-2 {
-  justify-content: center;
+.knights-container .piece-knight:first-child {
+  margin-left: 0;
 }
 
-/* 3 cavaleiros - triângulo */
-.knights-container.knights-3 {
-  justify-content: center;
+/* Cada cavaleiro seguinte fica mais à frente */
+.knights-container .piece-knight:nth-child(2) {
+  z-index: 2;
 }
 
-.knights-container.knights-3 .piece-knight:first-child {
-  flex-basis: 100%;
-  display: flex;
-  justify-content: center;
+.knights-container .piece-knight:nth-child(3) {
+  z-index: 3;
 }
 
-/* Cavaleiros menores quando há mais de 1 */
+/* Cavaleiros um pouco menores para caber melhor */
 .knights-container.knights-2 .piece-knight,
 .knights-container.knights-3 .piece-knight {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
 }
 
 .knights-container.knights-2 .piece-knight::after,
 .knights-container.knights-3 .piece-knight::after {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 
 .piece-stronghold {
