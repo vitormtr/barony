@@ -1,148 +1,195 @@
-// Módulo para menu de ações da fase de batalha
+// Módulo para menu de ações da fase de batalha (contextual por hexágono)
 import { socket, player, emitRequestPlayerData } from "./ClientSocketEvents.js";
 import { showError, showSuccess, showWarning, showInfo } from "./notifications.js";
 import { isMyTurn } from "./turnIndicator.js";
 import { getCurrentPhase } from "./pieceMenu.js";
 
-let actionMenuElement = null;
-let selectedAction = null;
+let contextMenuElement = null;
 let actionState = {
   movementsLeft: 0,
   selectedKnights: [],
-  targetHex: null
+  currentAction: null
 };
 
 const ACTIONS = {
   recruitment: {
     name: 'Recrutamento',
     icon: '⚔️',
-    description: 'Adicione 2 cavaleiros em uma cidade (3 se adjacente a lago)'
+    description: 'Adicionar cavaleiros'
   },
   movement: {
     name: 'Movimento',
     icon: '🏃',
-    description: 'Mova 1 ou 2 cavaleiros um espaço cada'
+    description: 'Mover cavaleiro'
   },
   construction: {
     name: 'Construção',
     icon: '🏗️',
-    description: 'Substitua cavaleiros por vilas ou fortalezas'
+    description: 'Construir estrutura'
   },
   newCity: {
     name: 'Nova Cidade',
     icon: '🏰',
-    description: 'Substitua uma vila por uma cidade (+10 pontos)'
+    description: 'Transformar em cidade'
   },
   expedition: {
     name: 'Expedição',
     icon: '🧭',
-    description: 'Coloque um cavaleiro na borda do tabuleiro'
+    description: 'Colocar cavaleiro'
   },
   nobleTitle: {
     name: 'Título Nobre',
     icon: '👑',
-    description: 'Gaste 15+ recursos para subir de título'
+    description: 'Subir de título'
   }
 };
 
-// Cria o menu de ações
-export function showActionMenu() {
-  if (getCurrentPhase() !== 'battle') return;
+// Inicializa a fase de batalha - adiciona handler de clique nos hexágonos
+export function initBattlePhase() {
+  showInfo('Fase de batalha! Clique em um hexágono para ver ações disponíveis.');
+  addHexClickHandler();
+}
 
-  if (!isMyTurn()) {
+// Determina quais ações estão disponíveis para um hexágono
+function getAvailableActions(hexData) {
+  const actions = [];
+  const pieces = hexData.pieces || [];
+
+  const hasPlayerCity = pieces.some(p => p.type === 'city' && p.color === player?.color);
+  const hasPlayerKnight = pieces.some(p => p.type === 'knight' && p.color === player?.color);
+  const hasPlayerVillage = pieces.some(p => p.type === 'village' && p.color === player?.color);
+  const isEmpty = pieces.length === 0;
+  const hasTexture = hexData.texture && hexData.texture !== 'water.png';
+
+  // Recrutamento: se tem cidade do jogador
+  if (hasPlayerCity) {
+    actions.push('recruitment');
+  }
+
+  // Movimento: se tem cavaleiro do jogador
+  if (hasPlayerKnight) {
+    actions.push('movement');
+  }
+
+  // Construção: se tem cavaleiro do jogador (pode construir vila ou fortaleza)
+  if (hasPlayerKnight) {
+    actions.push('construction');
+  }
+
+  // Nova Cidade: se tem vila do jogador
+  if (hasPlayerVillage) {
+    actions.push('newCity');
+  }
+
+  // Expedição: se é borda vazia com textura
+  if (isEmpty && hasTexture && isBorderHex(hexData.row, hexData.col)) {
+    // Verifica se jogador tem cavaleiros suficientes na reserva
+    if (player?.pieces?.knight >= 2) {
+      actions.push('expedition');
+    }
+  }
+
+  // Título Nobre: sempre disponível se tiver recursos (mostra em qualquer hex)
+  const totalResources = calculateTotalResources();
+  if (totalResources >= 15) {
+    actions.push('nobleTitle');
+  }
+
+  return actions;
+}
+
+// Mostra o menu contextual no hexágono clicado
+function showContextMenu(hex, hexData) {
+  hideContextMenu();
+
+  const availableActions = getAvailableActions(hexData);
+
+  if (availableActions.length === 0) {
+    showWarning('Nenhuma ação disponível neste hexágono');
     return;
   }
 
-  if (actionMenuElement) {
-    actionMenuElement.remove();
-  }
+  contextMenuElement = document.createElement('div');
+  contextMenuElement.className = 'hex-context-menu';
 
-  actionMenuElement = document.createElement('div');
-  actionMenuElement.id = 'action-menu';
-  actionMenuElement.className = 'action-menu';
-
-  let actionsHTML = '<div class="action-menu-title">Escolha uma ação</div><div class="action-buttons">';
-
-  for (const [key, action] of Object.entries(ACTIONS)) {
-    actionsHTML += `
-      <button class="action-btn" data-action="${key}" title="${action.description}">
+  let menuHTML = '';
+  availableActions.forEach(actionKey => {
+    const action = ACTIONS[actionKey];
+    menuHTML += `
+      <button class="context-action-btn" data-action="${actionKey}" title="${action.description}">
         <span class="action-icon">${action.icon}</span>
         <span class="action-name">${action.name}</span>
       </button>
     `;
-  }
+  });
 
-  actionsHTML += '</div>';
-  actionMenuElement.innerHTML = actionsHTML;
+  contextMenuElement.innerHTML = menuHTML;
 
-  document.body.appendChild(actionMenuElement);
+  // Posiciona o menu perto do hexágono
+  const rect = hex.getBoundingClientRect();
+  contextMenuElement.style.left = `${rect.left + rect.width / 2}px`;
+  contextMenuElement.style.top = `${rect.top - 10}px`;
 
-  // Event listeners
-  actionMenuElement.querySelectorAll('.action-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+  document.body.appendChild(contextMenuElement);
+
+  // Event listeners para cada ação
+  contextMenuElement.querySelectorAll('.context-action-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const action = btn.dataset.action;
-      selectAction(action);
+      executeAction(action, hex, hexData);
     });
   });
+
+  // Fecha ao clicar fora
+  setTimeout(() => {
+    document.addEventListener('click', handleClickOutside);
+  }, 100);
 }
 
-export function hideActionMenu() {
-  if (actionMenuElement) {
-    actionMenuElement.remove();
-    actionMenuElement = null;
+function hideContextMenu() {
+  if (contextMenuElement) {
+    contextMenuElement.remove();
+    contextMenuElement = null;
   }
-  selectedAction = null;
-  resetActionState();
+  document.removeEventListener('click', handleClickOutside);
 }
 
-function resetActionState() {
-  actionState = {
-    movementsLeft: 0,
-    selectedKnights: [],
-    targetHex: null
-  };
-  // Remove highlights
-  document.querySelectorAll('.hexagon').forEach(hex => {
-    hex.classList.remove('action-highlight', 'action-selected', 'action-target');
-  });
+function handleClickOutside(e) {
+  if (contextMenuElement && !contextMenuElement.contains(e.target)) {
+    hideContextMenu();
+  }
 }
 
-function selectAction(action) {
-  selectedAction = action;
-  hideActionMenu();
+// Executa a ação selecionada
+function executeAction(action, hex, hexData) {
+  hideContextMenu();
+  actionState.currentAction = action;
 
   switch (action) {
     case 'recruitment':
-      startRecruitment();
+      executeRecruitment(hexData);
       break;
     case 'movement':
-      startMovement();
+      startMovement(hex, hexData);
       break;
     case 'construction':
-      startConstruction();
+      showConstructionOptions(hex, hexData);
       break;
     case 'newCity':
-      startNewCity();
+      executeNewCity(hexData);
       break;
     case 'expedition':
-      startExpedition();
+      executeExpedition(hexData);
       break;
     case 'nobleTitle':
-      startNobleTitle();
+      showNobleTitleConfirmation();
       break;
   }
 }
 
 // ========== RECRUTAMENTO ==========
-function startRecruitment() {
-  showInfo('Selecione uma cidade para recrutar cavaleiros');
-  highlightPlayerCities();
-  addHexClickHandler(handleRecruitmentClick);
-}
-
-function handleRecruitmentClick(hex) {
-  const hexData = JSON.parse(hex.dataset.hex);
-
+function executeRecruitment(hexData) {
   socket.emit('battleAction', {
     action: 'recruitment',
     row: hexData.row,
@@ -152,33 +199,42 @@ function handleRecruitmentClick(hex) {
   socket.once('battleActionResult', handleActionResult);
 }
 
-function highlightPlayerCities() {
-  document.querySelectorAll('.hexagon').forEach(hex => {
-    const hexData = JSON.parse(hex.dataset.hex);
-    if (hexData.pieces) {
-      const hasPlayerCity = hexData.pieces.some(p =>
-        p.type === 'city' && p.color === player?.color
-      );
-      if (hasPlayerCity) {
-        hex.classList.add('action-highlight');
-      }
-    }
-  });
-}
-
 // ========== MOVIMENTO ==========
-function startMovement() {
+function startMovement(hex, hexData) {
   actionState.movementsLeft = 2;
-  showInfo('Selecione um cavaleiro para mover (2 movimentos disponíveis)');
-  highlightPlayerKnights();
-  addHexClickHandler(handleMovementClick);
+  actionState.selectedKnights = [{ row: hexData.row, col: hexData.col }];
+
+  // Destaca o hexágono selecionado
+  hex.classList.add('action-selected');
+
+  // Destaca hexágonos adjacentes válidos
+  highlightAdjacentHexes(hexData.row, hexData.col);
+
+  showInfo('Selecione o destino (2 movimentos disponíveis)');
+  showEndActionButton();
+
+  // Handler especial para movimento
+  removeHexClickHandler();
+  addMovementClickHandler();
 }
 
-function handleMovementClick(hex) {
+function addMovementClickHandler() {
+  document.addEventListener('click', handleMovementClick);
+}
+
+function removeMovementClickHandler() {
+  document.removeEventListener('click', handleMovementClick);
+}
+
+function handleMovementClick(e) {
+  const hex = e.target.closest('.hexagon');
+  if (!hex) return;
+
+  e.stopPropagation();
   const hexData = JSON.parse(hex.dataset.hex);
 
-  // Se já selecionou um cavaleiro, este é o destino
-  if (actionState.selectedKnights.length > 0 && hex.classList.contains('action-target')) {
+  // Se clicou em um destino válido
+  if (hex.classList.contains('action-target')) {
     const from = actionState.selectedKnights[0];
     socket.emit('battleAction', {
       action: 'movement',
@@ -189,15 +245,18 @@ function handleMovementClick(hex) {
     socket.once('battleActionResult', (result) => {
       if (result.success) {
         actionState.movementsLeft--;
-        actionState.selectedKnights = [];
         resetActionState();
 
         if (actionState.movementsLeft > 0) {
-          showInfo(`Movimento realizado! ${actionState.movementsLeft} movimento(s) restante(s). Selecione outro cavaleiro ou clique em "Encerrar"`);
-          highlightPlayerKnights();
-          showEndActionButton();
+          showInfo(`Movimento realizado! ${actionState.movementsLeft} movimento(s) restante(s). Clique em outro cavaleiro ou "Encerrar Ação"`);
+          // Volta para o modo de seleção normal
+          removeMovementClickHandler();
+          addHexClickHandler();
         } else {
           showSuccess('Movimentos concluídos!');
+          removeEndActionButton();
+          removeMovementClickHandler();
+          addHexClickHandler();
           endTurn();
         }
       } else {
@@ -208,14 +267,14 @@ function handleMovementClick(hex) {
     return;
   }
 
-  // Seleciona o cavaleiro
+  // Se clicou em outro cavaleiro próprio, seleciona ele
   if (hexData.pieces) {
     const hasPlayerKnight = hexData.pieces.some(p =>
       p.type === 'knight' && p.color === player?.color
     );
     if (hasPlayerKnight) {
-      actionState.selectedKnights = [{ row: hexData.row, col: hexData.col }];
       resetActionState();
+      actionState.selectedKnights = [{ row: hexData.row, col: hexData.col }];
       hex.classList.add('action-selected');
       highlightAdjacentHexes(hexData.row, hexData.col);
       showInfo('Selecione o destino');
@@ -223,21 +282,12 @@ function handleMovementClick(hex) {
   }
 }
 
-function highlightPlayerKnights() {
-  document.querySelectorAll('.hexagon').forEach(hex => {
-    const hexData = JSON.parse(hex.dataset.hex);
-    if (hexData.pieces) {
-      const hasPlayerKnight = hexData.pieces.some(p =>
-        p.type === 'knight' && p.color === player?.color
-      );
-      if (hasPlayerKnight) {
-        hex.classList.add('action-highlight');
-      }
-    }
-  });
-}
-
 function highlightAdjacentHexes(row, col) {
+  // Remove destaques anteriores
+  document.querySelectorAll('.hexagon').forEach(h => {
+    h.classList.remove('action-target');
+  });
+
   const directions = row % 2 === 1
     ? [[-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [0, -1]]
     : [[-1, -1], [-1, 0], [0, 1], [1, 0], [1, -1], [0, -1]];
@@ -257,30 +307,6 @@ function highlightAdjacentHexes(row, col) {
 }
 
 // ========== CONSTRUÇÃO ==========
-function startConstruction() {
-  showInfo('Selecione um cavaleiro para construir uma estrutura');
-  highlightPlayerKnights();
-  addHexClickHandler(handleConstructionClick);
-}
-
-function handleConstructionClick(hex) {
-  const hexData = JSON.parse(hex.dataset.hex);
-
-  if (!hexData.pieces) return;
-
-  const hasPlayerKnight = hexData.pieces.some(p =>
-    p.type === 'knight' && p.color === player?.color
-  );
-
-  if (!hasPlayerKnight) {
-    showWarning('Selecione um hexágono com seu cavaleiro');
-    return;
-  }
-
-  // Mostra opções de construção
-  showConstructionOptions(hex, hexData);
-}
-
 function showConstructionOptions(hex, hexData) {
   const menu = document.createElement('div');
   menu.className = 'construction-menu';
@@ -301,8 +327,6 @@ function showConstructionOptions(hex, hexData) {
     btn.addEventListener('click', () => {
       menu.remove();
       if (btn.classList.contains('cancel')) {
-        resetActionState();
-        showActionMenu();
         return;
       }
 
@@ -320,15 +344,7 @@ function showConstructionOptions(hex, hexData) {
 }
 
 // ========== NOVA CIDADE ==========
-function startNewCity() {
-  showInfo('Selecione uma vila para transformar em cidade');
-  highlightPlayerVillages();
-  addHexClickHandler(handleNewCityClick);
-}
-
-function handleNewCityClick(hex) {
-  const hexData = JSON.parse(hex.dataset.hex);
-
+function executeNewCity(hexData) {
   socket.emit('battleAction', {
     action: 'newCity',
     row: hexData.row,
@@ -338,30 +354,8 @@ function handleNewCityClick(hex) {
   socket.once('battleActionResult', handleActionResult);
 }
 
-function highlightPlayerVillages() {
-  document.querySelectorAll('.hexagon').forEach(hex => {
-    const hexData = JSON.parse(hex.dataset.hex);
-    if (hexData.pieces) {
-      const hasPlayerVillage = hexData.pieces.some(p =>
-        p.type === 'village' && p.color === player?.color
-      );
-      if (hasPlayerVillage) {
-        hex.classList.add('action-highlight');
-      }
-    }
-  });
-}
-
 // ========== EXPEDIÇÃO ==========
-function startExpedition() {
-  showInfo('Selecione um espaço vazio na borda do tabuleiro');
-  highlightBorderHexes();
-  addHexClickHandler(handleExpeditionClick);
-}
-
-function handleExpeditionClick(hex) {
-  const hexData = JSON.parse(hex.dataset.hex);
-
+function executeExpedition(hexData) {
   socket.emit('battleAction', {
     action: 'expedition',
     row: hexData.row,
@@ -371,65 +365,18 @@ function handleExpeditionClick(hex) {
   socket.once('battleActionResult', handleActionResult);
 }
 
-function highlightBorderHexes() {
-  document.querySelectorAll('.hexagon').forEach(hex => {
-    const hexData = JSON.parse(hex.dataset.hex);
-    // Verifica se é borda e está vazio (tem textura mas sem peças)
-    if (hexData.texture && hexData.texture !== 'water.png' &&
-        (!hexData.pieces || hexData.pieces.length === 0)) {
-      // Verifica se é borda (lógica simplificada - hexágonos nas extremidades)
-      if (isBorderHex(hexData.row, hexData.col)) {
-        hex.classList.add('action-highlight');
-      }
-    }
-  });
-}
-
-function isBorderHex(row, col) {
-  // Considera borda os hexágonos que têm pelo menos um vizinho sem textura
-  const directions = row % 2 === 1
-    ? [[-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [0, -1]]
-    : [[-1, -1], [-1, 0], [0, 1], [1, 0], [1, -1], [0, -1]];
-
-  for (const [dRow, dCol] of directions) {
-    const newRow = row + dRow;
-    const newCol = col + dCol;
-    const neighbor = document.querySelector(`.hexagon[data-row="${newRow}"][data-col="${newCol}"]`);
-    if (!neighbor) return true; // Fora do tabuleiro = borda
-    const neighborData = JSON.parse(neighbor.dataset.hex);
-    if (!neighborData.texture) return true; // Vizinho sem textura = borda
-  }
-  return false;
-}
-
 // ========== TÍTULO NOBRE ==========
-function startNobleTitle() {
-  // Verifica se tem recursos suficientes
+function showNobleTitleConfirmation() {
   const totalResources = calculateTotalResources();
 
-  if (totalResources < 15) {
-    showError(`Recursos insuficientes! Você tem ${totalResources}/15 necessários.`);
-    showActionMenu();
-    return;
-  }
-
-  showNobleTitleMenu(totalResources);
-}
-
-function calculateTotalResources() {
-  if (!player || !player.resources) return 0;
-  return Object.values(player.resources).reduce((sum, val) => sum + val, 0);
-}
-
-function showNobleTitleMenu(totalResources) {
   const menu = document.createElement('div');
   menu.className = 'noble-title-menu modal-overlay';
   menu.innerHTML = `
     <div class="modal-content">
-      <h3>Título Nobre</h3>
-      <p>Você tem ${totalResources} recursos.</p>
+      <h3>👑 Título Nobre</h3>
+      <p>Você tem <strong>${totalResources}</strong> recursos.</p>
       <p>Deseja gastar 15 recursos para subir de título?</p>
-      <p class="current-title">Título atual: ${player?.title || 'Barão'}</p>
+      <p class="current-title">Título atual: <strong>${player?.titleName || 'Barão'}</strong></p>
       <div class="modal-buttons">
         <button class="modal-btn confirm">Confirmar</button>
         <button class="modal-btn cancel">Cancelar</button>
@@ -447,14 +394,33 @@ function showNobleTitleMenu(totalResources) {
 
   menu.querySelector('.cancel').addEventListener('click', () => {
     menu.remove();
-    showActionMenu();
   });
 }
 
 // ========== UTILITÁRIOS ==========
+function calculateTotalResources() {
+  if (!player || !player.resources) return 0;
+  return Object.values(player.resources).reduce((sum, val) => sum + val, 0);
+}
+
+function isBorderHex(row, col) {
+  const directions = row % 2 === 1
+    ? [[-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [0, -1]]
+    : [[-1, -1], [-1, 0], [0, 1], [1, 0], [1, -1], [0, -1]];
+
+  for (const [dRow, dCol] of directions) {
+    const newRow = row + dRow;
+    const newCol = col + dCol;
+    const neighbor = document.querySelector(`.hexagon[data-row="${newRow}"][data-col="${newCol}"]`);
+    if (!neighbor) return true;
+    const neighborData = JSON.parse(neighbor.dataset.hex);
+    if (!neighborData.texture) return true;
+  }
+  return false;
+}
+
 function handleActionResult(result) {
   resetActionState();
-  removeHexClickHandler();
 
   if (result.success) {
     showSuccess(result.message || 'Ação realizada!');
@@ -462,12 +428,23 @@ function handleActionResult(result) {
     endTurn();
   } else {
     showError(result.message || 'Falha na ação');
-    showActionMenu();
   }
 }
 
 function endTurn() {
   socket.emit('endTurn');
+}
+
+function resetActionState() {
+  actionState = {
+    movementsLeft: actionState.movementsLeft, // Preserva para movimento
+    selectedKnights: [],
+    currentAction: null
+  };
+  // Remove highlights
+  document.querySelectorAll('.hexagon').forEach(hex => {
+    hex.classList.remove('action-highlight', 'action-selected', 'action-target');
+  });
 }
 
 function showEndActionButton() {
@@ -481,50 +458,77 @@ function showEndActionButton() {
   }
 
   btn.onclick = () => {
-    btn.remove();
+    removeEndActionButton();
     resetActionState();
-    removeHexClickHandler();
+    removeMovementClickHandler();
+    addHexClickHandler();
     endTurn();
   };
 }
 
-let currentHexClickHandler = null;
+function removeEndActionButton() {
+  const btn = document.getElementById('end-action-btn');
+  if (btn) btn.remove();
+}
 
-function addHexClickHandler(handler) {
-  removeHexClickHandler();
-  currentHexClickHandler = (e) => {
-    const hex = e.target.closest('.hexagon');
-    if (hex) {
-      e.stopPropagation();
-      handler(hex);
-    }
-  };
-  document.addEventListener('click', currentHexClickHandler);
+// Handler principal de clique nos hexágonos
+function handleHexClick(e) {
+  if (getCurrentPhase() !== 'battle') return;
+  if (!isMyTurn()) {
+    showWarning('Não é seu turno!');
+    return;
+  }
+
+  const hex = e.target.closest('.hexagon');
+  if (!hex) return;
+
+  e.stopPropagation();
+
+  const hexData = JSON.parse(hex.dataset.hex);
+  showContextMenu(hex, hexData);
+}
+
+function addHexClickHandler() {
+  document.querySelectorAll('.hexagon').forEach(hex => {
+    hex.removeEventListener('click', handleHexClick);
+    hex.addEventListener('click', handleHexClick);
+  });
 }
 
 function removeHexClickHandler() {
-  if (currentHexClickHandler) {
-    document.removeEventListener('click', currentHexClickHandler);
-    currentHexClickHandler = null;
-  }
-}
-
-// Inicializa o menu quando a fase de batalha começa
-export function initBattlePhase() {
-  showActionMenu();
+  document.querySelectorAll('.hexagon').forEach(hex => {
+    hex.removeEventListener('click', handleHexClick);
+  });
 }
 
 // Chamado quando o turno muda
 export function onTurnChanged() {
-  hideActionMenu();
+  hideContextMenu();
   resetActionState();
-  removeHexClickHandler();
+  removeMovementClickHandler();
+  removeEndActionButton();
 
   if (getCurrentPhase() === 'battle' && isMyTurn()) {
-    setTimeout(() => showActionMenu(), 500);
+    setTimeout(() => {
+      showInfo('Seu turno! Clique em um hexágono para ver ações disponíveis.');
+      addHexClickHandler();
+    }, 500);
   }
 }
 
+// Exporta para compatibilidade
+export function hideActionMenu() {
+  hideContextMenu();
+  resetActionState();
+  removeMovementClickHandler();
+  removeEndActionButton();
+  removeHexClickHandler();
+}
+
+export function showActionMenu() {
+  // Não usado mais - mantido para compatibilidade
+}
+
 export function getSelectedAction() {
-  return selectedAction;
+  return actionState.currentAction;
 }

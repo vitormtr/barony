@@ -1190,6 +1190,55 @@ button:active {
   color: var(--color-text-muted);
 }
 
+/* Menu contextual de hexágono */
+.hex-context-menu {
+  position: fixed;
+  z-index: 9999;
+  transform: translate(-50%, -100%);
+  background: linear-gradient(145deg, var(--color-surface), var(--color-background));
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: fadeIn 0.2s ease;
+  min-width: 140px;
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+}
+
+.context-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(145deg, var(--color-surface-light), var(--color-surface));
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  width: 100%;
+  text-align: left;
+}
+
+.context-action-btn:hover {
+  border-color: var(--color-primary);
+  background: linear-gradient(145deg, var(--color-surface), var(--color-surface-light));
+  transform: translateX(4px);
+}
+
+.context-action-btn .action-icon {
+  font-size: 1.2rem;
+  min-width: 24px;
+  text-align: center;
+}
+
+.context-action-btn .action-name {
+  font-size: 0.8rem;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
 /* Botão de encerrar ação */
 .end-action-btn {
   position: fixed;
