@@ -153,6 +153,7 @@ export function handleSocketEvents(socket, io, sessionManager) {
       logger.info('Solicitação de colocação de peça', { socketId: socket.id, payload });
       const result = sessionManager.placePiece(socket, io, payload);
 
+      logger.info('Resultado da colocação de peça', { socketId: socket.id, result });
       socket.emit('placePieceResult', result);
 
       if (!result.success) {
@@ -160,6 +161,8 @@ export function handleSocketEvents(socket, io, sessionManager) {
       }
     } catch (error) {
       handleError(error, 'placePiece', { payload });
+      // Garante que o cliente receba uma resposta mesmo em caso de erro
+      socket.emit('placePieceResult', { success: false, message: 'Erro interno do servidor' });
     }
   };
 

@@ -172,29 +172,35 @@ function placePiece(hex) {
   isProcessing = true;
   showLoadingOverlay(true);
 
+  console.log('Enviando placePiece:', payload);
   socket.emit('placePiece', payload);
 
-  socket.once('placePieceResult', (result) => {
+  const resultHandler = (result) => {
+    console.log('Recebido placePieceResult:', result);
     isProcessing = false;
     showLoadingOverlay(false);
     hidePieceMenu();
 
-    if (result.success) {
+    if (result && result.success) {
       showSuccess('Cidade + Cavaleiro colocados!');
       emitRequestPlayerData();
     } else {
-      showError(result.message || 'Falha ao colocar a cidade.');
+      showError(result?.message || 'Falha ao colocar a cidade.');
     }
-  });
+  };
 
-  // Timeout de segurança
+  socket.once('placePieceResult', resultHandler);
+
+  // Timeout de segurança (aumentado para 10 segundos)
   setTimeout(() => {
     if (isProcessing) {
+      console.log('Timeout atingido - removendo listener');
+      socket.off('placePieceResult', resultHandler);
       isProcessing = false;
       showLoadingOverlay(false);
       showError('Tempo esgotado. Tente novamente.');
     }
-  }, 5000);
+  }, 10000);
 }
 
 function showLoadingOverlay(show) {
