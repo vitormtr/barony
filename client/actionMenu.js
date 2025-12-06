@@ -246,23 +246,21 @@ function handleMovementClick(e) {
       if (result.success) {
         actionState.movementsLeft--;
         resetActionState();
+        emitRequestPlayerData();
 
         if (actionState.movementsLeft > 0) {
           showInfo(`Movimento realizado! ${actionState.movementsLeft} movimento(s) restante(s). Clique em outro cavaleiro ou "Encerrar Ação"`);
-          // Volta para o modo de seleção normal
-          removeMovementClickHandler();
-          addHexClickHandler();
+          // Continua no modo de movimento - destaca todos os cavaleiros do jogador
+          highlightPlayerKnights();
         } else {
           showSuccess('Movimentos concluídos!');
           removeEndActionButton();
           removeMovementClickHandler();
-          addHexClickHandler();
           endTurn();
         }
       } else {
         showError(result.message);
       }
-      emitRequestPlayerData();
     });
     return;
   }
@@ -280,6 +278,21 @@ function handleMovementClick(e) {
       showInfo('Selecione o destino');
     }
   }
+}
+
+// Destaca todos os cavaleiros do jogador (para selecionar o próximo a mover)
+function highlightPlayerKnights() {
+  document.querySelectorAll('.hexagon').forEach(hex => {
+    const hexData = JSON.parse(hex.dataset.hex);
+    if (hexData.pieces) {
+      const hasPlayerKnight = hexData.pieces.some(p =>
+        p.type === 'knight' && p.color === player?.color
+      );
+      if (hasPlayerKnight) {
+        hex.classList.add('action-highlight');
+      }
+    }
+  });
 }
 
 function highlightAdjacentHexes(row, col) {
