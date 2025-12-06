@@ -6,6 +6,20 @@ import { showError, showWarning, showInfo, showSuccess } from './notifications.j
 import { updateTurnIndicator, setLocalPlayer } from './turnIndicator.js';
 import { showRoomInfo } from './roomInfo.js';
 import { setLeader, disableDistributionButton, enableDistributionButton } from './leaderControls.js';
+import {
+  setPhase,
+  setPlacementStep,
+  setCitiesRemaining,
+  setCityPosition,
+  resetPlacementState,
+  addPieceClickHandler
+} from './pieceMenu.js';
+import {
+  disableTextureMenu,
+  enableTextureMenu,
+  showBoardCompleteTransition
+} from './texture-menu.js';
+import { showPlayerColor } from './playerColorIndicator.js';
 
 export const socket = io();
 export let player = null;
@@ -25,6 +39,10 @@ socket.on('roomJoined', handleRoomJoined);
 socket.on('randomDistributionComplete', handleRandomDistributionComplete);
 socket.on('gameRestarted', handleGameRestarted);
 socket.on('restartResult', handleRestartResult);
+socket.on('initialPlacementStarted', handleInitialPlacementStarted);
+socket.on('initialPlacementUpdate', handleInitialPlacementUpdate);
+socket.on('initialPlacementComplete', handleInitialPlacementComplete);
+socket.on('piecePlaced', handlePiecePlaced);
 
 
 export function emitJoinRoom(roomId) {
@@ -66,8 +84,12 @@ function handlePlayersDraw(players) {
 }
 
 function handlePlayerJoinedRoom(currentPlayer) {
-  player = currentPlayer;
-  setLocalPlayer(currentPlayer.id);
+  // Este evento é emitido para TODOS os jogadores quando alguém entra
+  // Só atualiza se for o próprio jogador (e ainda não tiver player definido)
+  if (!player && currentPlayer.id === socket.id) {
+    player = currentPlayer;
+    setLocalPlayer(currentPlayer.id);
+  }
 }
 
 export function handlePlayerDataResponse(playerData) {
@@ -92,7 +114,12 @@ function handlePlayerDisconnected(data) {
 
 function handlePhaseChanged(data) {
   console.log('Fase alterada:', data);
-  if (data.phase === 'battle') {
+  setPhase(data.phase);
+
+  if (data.phase === 'initialPlacement') {
+    if (data.step) setPlacementStep(data.step);
+    showInfo('Fase de posicionamento inicial!');
+  } else if (data.phase === 'battle') {
     showInfo('Fase de colocação concluída! Iniciando fase de batalha...');
   }
 }
@@ -106,6 +133,13 @@ function handleRoomCreated(data) {
   if (data.isLeader) {
     setLeader(true);
   }
+
+  // Atualiza os dados do jogador local
+  if (data.player) {
+    player = data.player;
+    setLocalPlayer(data.player.id);
+    showPlayerColor(data.player.color);
+  }
 }
 
 function handleRoomJoined(data) {
@@ -114,6 +148,13 @@ function handleRoomJoined(data) {
   showSuccess(`Você entrou na sala ${data.roomId}!`);
   // Quem entra não é líder
   setLeader(false);
+
+  // Atualiza os dados do jogador local
+  if (data.player) {
+    player = data.player;
+    setLocalPlayer(data.player.id);
+    showPlayerColor(data.player.color);
+  }
 }
 
 function handleRandomDistributionComplete(data) {
@@ -126,6 +167,8 @@ function handleGameRestarted(data) {
   console.log('Jogo reiniciado:', data);
   showSuccess(data.message);
   enableDistributionButton();
+  resetPlacementState();
+  enableTextureMenu();
 }
 
 function handleRestartResult(result) {
@@ -133,6 +176,57 @@ function handleRestartResult(result) {
     console.log('Reinício bem-sucedido');
   } else {
     showError(result.message);
+  }
+}
+
+function handleInitialPlacementStarted(data) {
+  console.log('Posicionamento inicial iniciado:', data);
+
+  // Desabilita o menu de texturas
+  disableTextureMenu();
+
+  // Mostra transição de fim da construção do tabuleiro
+  showBoardCompleteTransition(() => {
+    // Após a transição, configura a fase de posicionamento
+    setPhase('initialPlacement');
+    setPlacementStep(data.currentStep);
+    setCitiesRemaining(data.citiesRemaining || 3);
+    setCityPosition(null);
+    showInfo(data.message);
+
+    // Atualiza o indicador de turno (dados vêm junto com o evento)
+    if (data.currentPlayerId && data.currentPlayerColor) {
+      updateTurnIndicator({
+        currentPlayerId: data.currentPlayerId,
+        currentPlayerColor: data.currentPlayerColor
+      });
+    }
+
+    // Adiciona handler de clique para peças
+    setTimeout(() => addPieceClickHandler(), 100);
+  });
+}
+
+function handleInitialPlacementUpdate(data) {
+  console.log('Atualização de posicionamento:', data);
+
+  if (data.currentStep) setPlacementStep(data.currentStep);
+  if (data.citiesRemaining !== undefined) setCitiesRemaining(data.citiesRemaining);
+
+  showInfo(data.message);
+}
+
+function handleInitialPlacementComplete(data) {
+  console.log('Posicionamento inicial completo:', data);
+  setPhase('battle');
+  showSuccess(data.message);
+}
+
+function handlePiecePlaced(data) {
+  console.log('Peça colocada:', data);
+  // A atualização do tabuleiro é feita via updateBoard
+  if (data.pieceType === 'city') {
+    setCityPosition({ row: data.row, col: data.col });
   }
 }
 

@@ -2,10 +2,17 @@ import { socket, emitUpdatePlayerTexture, player, emitRequestPlayerData } from "
 import { CONFIG } from "./config.js";
 import { showError, showSuccess, showWarning } from "./notifications.js";
 import { isMyTurn } from "./turnIndicator.js";
+import { getCurrentPhase } from "./pieceMenu.js";
 
 let isProcessing = false;
+let textureMenuEnabled = true;
 
 export async function showTextureMenu(hex) {
+  // Não mostrar menu de texturas se estiver desabilitado ou em outra fase
+  if (!textureMenuEnabled || getCurrentPhase() !== 'waiting') {
+    return;
+  }
+
   const menu = getOrCreateTextureMenu();
 
   await emitRequestPlayerData();
@@ -244,4 +251,51 @@ function handleDocumentClick(event) {
 function hideTextureMenu() {
   const menu = document.getElementById('textureMenu');
   menu && (menu.style.display = 'none');
+}
+
+// Desabilita o menu de texturas (usado quando a fase de construção termina)
+export function disableTextureMenu() {
+  textureMenuEnabled = false;
+  hideTextureMenu();
+
+  // Remove seleção dos hexágonos
+  document.querySelectorAll('.hexagon').forEach(h => h.classList.remove('selected'));
+}
+
+// Reabilita o menu de texturas (usado quando o jogo reinicia)
+export function enableTextureMenu() {
+  textureMenuEnabled = true;
+}
+
+// Mostra a transição de fim da construção do tabuleiro
+export function showBoardCompleteTransition(callback) {
+  const overlay = document.createElement('div');
+  overlay.id = 'phase-transition-overlay';
+  overlay.className = 'phase-transition-overlay';
+  overlay.innerHTML = `
+    <div class="phase-transition-content">
+      <div class="phase-transition-icon">🏰</div>
+      <h2 class="phase-transition-title">Tabuleiro Construído!</h2>
+      <p class="phase-transition-subtitle">Prepare-se para posicionar suas cidades e cavaleiros</p>
+      <div class="phase-transition-progress"></div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Animação de entrada
+  requestAnimationFrame(() => {
+    overlay.classList.add('visible');
+  });
+
+  // Remove após 3 segundos
+  setTimeout(() => {
+    overlay.classList.remove('visible');
+    overlay.classList.add('hiding');
+
+    setTimeout(() => {
+      overlay.remove();
+      if (callback) callback();
+    }, 500);
+  }, 3000);
 }

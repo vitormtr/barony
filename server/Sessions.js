@@ -10,9 +10,15 @@ const DIRECTION_MAP = {
 const GAME_PHASES = {
     WAITING: 'waiting',
     PLACEMENT: 'placement',
+    INITIAL_PLACEMENT: 'initialPlacement',  // Fase 2: colocação de cidades e cavaleiros
     BATTLE: 'battle',
     ENDED: 'ended'
 };
+
+// Terrenos onde cidades podem ser colocadas (apenas planície e campo - NÃO floresta, montanha ou água)
+const CITY_VALID_TERRAINS = ['plain.png', 'farm.png'];
+// Terrenos onde cavaleiros podem ser colocados (qualquer exceto água)
+const KNIGHT_VALID_TERRAINS = ['farm.png', 'plain.png', 'forest.png', 'mountain.png'];
 
 const TEXTURES = ['water.png', 'farm.png', 'mountain.png', 'plain.png', 'forest.png'];
 
@@ -34,7 +40,16 @@ export class Sessions {
             gamePhase: GAME_PHASES.WAITING,
             gameStarted: false,
             leaderId: socket.id,  // Líder é quem criou a sala
-            lockedForEntry: false // Bloqueia entrada após distribuição aleatória
+            lockedForEntry: false, // Bloqueia entrada após distribuição aleatória
+            // Fase 2: posicionamento inicial
+            initialPlacementState: {
+                round: 0,           // 0 = primeira rodada, 1 = segunda rodada (ordem inversa)
+                turnOrder: [],      // Ordem normal dos jogadores
+                currentTurnIndex: 0,
+                placementStep: null,// 'city' ou 'knights'
+                knightsPlaced: 0,   // Quantos cavaleiros foram colocados neste turno
+                cityPosition: null  // Posição da cidade atual para validar adjacência dos cavaleiros
+            }
         };
 
         const player = new Player(socket.id, this.getRandomColor(roomId));
@@ -80,8 +95,8 @@ export class Sessions {
         }
 
         const players = Object.values(session.players);
-        if (players.length === 0) {
-            return { success: false, message: 'Não há jogadores na sala!' };
+        if (players.length < 4) {
+            return { success: false, message: 'É necessário 4 jogadores para iniciar o jogo!' };
         }
 
         // Bloqueia entrada de novos jogadores
@@ -156,13 +171,251 @@ export class Sessions {
             lockedForEntry: true
         });
 
-        // Muda para fase de batalha já que não há mais texturas para colocar
-        session.gamePhase = GAME_PHASES.BATTLE;
-        io.to(roomId).emit('phaseChanged', { phase: 'battle' });
-
         console.log(`Distribuição aleatória na sala ${roomId}. Entrada bloqueada.`);
 
+        // Inicia a fase de posicionamento inicial (colocar cidades e cavaleiros)
+        this.startInitialPlacement(roomId, io);
+
         return { success: true, message: 'Texturas distribuídas com sucesso!' };
+    }
+
+    // Inicia a fase de posicionamento inicial
+    // Regras Barony: ordem especial - jogadores 1,2,3 colocam 1 cidade, jogador 4 coloca 3, depois volta 3,2,1 colocando mais 2 cada
+    // Cavaleiro é colocado automaticamente junto com a cidade
+    startInitialPlacement(roomId, io) {
+        const session = this.session[roomId];
+        if (!session) return;
+
+        session.gamePhase = GAME_PHASES.INITIAL_PLACEMENT;
+
+        // Define a ordem dos jogadores (4 jogadores)
+        const players = Object.values(session.players);
+        const playerIds = players.map(p => p.id);
+
+        // Ordem de colocação:
+        // Fase 1: jogador 0 (1x), jogador 1 (1x), jogador 2 (1x), jogador 3 (3x)
+        // Fase 2: jogador 2 (2x), jogador 1 (2x), jogador 0 (2x)
+        // Total por jogador: 3 cidades cada
+        const placementSequence = [
+            { playerId: playerIds[0], citiesToPlace: 1 },  // Jogador 1: 1 cidade
+            { playerId: playerIds[1], citiesToPlace: 1 },  // Jogador 2: 1 cidade
+            { playerId: playerIds[2], citiesToPlace: 1 },  // Jogador 3: 1 cidade
+            { playerId: playerIds[3], citiesToPlace: 3 },  // Jogador 4: 3 cidades
+            { playerId: playerIds[2], citiesToPlace: 2 },  // Jogador 3: +2 cidades
+            { playerId: playerIds[1], citiesToPlace: 2 },  // Jogador 2: +2 cidades
+            { playerId: playerIds[0], citiesToPlace: 2 },  // Jogador 1: +2 cidades
+        ];
+
+        session.initialPlacementState = {
+            placementSequence,
+            currentSequenceIndex: 0,
+            citiesPlacedInTurn: 0,      // Cidades colocadas no turno atual
+        };
+
+        // Define o primeiro jogador
+        const firstTurn = placementSequence[0];
+        session.playerOnTurn = session.players[firstTurn.playerId];
+
+        io.to(roomId).emit('phaseChanged', {
+            phase: 'initialPlacement'
+        });
+
+        // Inclui dados do turno no evento de início para processar após a transição
+        io.to(roomId).emit('initialPlacementStarted', {
+            message: 'Fase de posicionamento inicial! Coloque sua cidade.',
+            currentStep: 'city',
+            citiesRemaining: firstTurn.citiesToPlace,
+            currentPlayerId: session.playerOnTurn.id,
+            currentPlayerColor: session.playerOnTurn.color
+        });
+
+        console.log(`Fase de posicionamento inicial iniciada na sala ${roomId}`);
+    }
+
+    // Coloca uma cidade no tabuleiro (cavaleiro é adicionado automaticamente)
+    placePiece(socket, io, payload) {
+        const roomId = this.getRoomIdBySocketId(socket.id);
+        const session = this.session[roomId];
+
+        if (!session) {
+            return { success: false, error: 'ROOM_NOT_FOUND', message: 'Sala não encontrada!' };
+        }
+
+        if (session.gamePhase !== GAME_PHASES.INITIAL_PLACEMENT) {
+            return { success: false, error: 'WRONG_PHASE', message: 'Não está na fase de posicionamento!' };
+        }
+
+        const { row, col } = payload;
+        const player = session.players[socket.id];
+        const state = session.initialPlacementState;
+        const currentTurn = state.placementSequence[state.currentSequenceIndex];
+
+        // Validação: é o turno do jogador?
+        if (currentTurn.playerId !== socket.id) {
+            return { success: false, error: 'NOT_YOUR_TURN', message: 'Não é seu turno!' };
+        }
+
+        // Validação: jogador tem cidade disponível?
+        if (player.pieces.city <= 0) {
+            return { success: false, error: 'NO_PIECES', message: 'Você não tem mais cidades!' };
+        }
+
+        // Validação: jogador tem cavaleiro disponível?
+        if (player.pieces.knight <= 0) {
+            return { success: false, error: 'NO_PIECES', message: 'Você não tem mais cavaleiros!' };
+        }
+
+        // Validação: hexágono existe e tem textura
+        const hex = session.boardState[row]?.[col];
+        if (!hex || !hex.texture) {
+            return { success: false, error: 'INVALID_HEX', message: 'Hexágono inválido!' };
+        }
+
+        // Validação: hexágono não está ocupado
+        if (hex.pieces && hex.pieces.length > 0) {
+            return { success: false, error: 'HEX_OCCUPIED', message: 'Este hexágono já está ocupado!' };
+        }
+
+        // Validação: terreno válido para cidade (apenas planície e campo)
+        if (!CITY_VALID_TERRAINS.includes(hex.texture)) {
+            return { success: false, error: 'INVALID_TERRAIN', message: 'Cidades só podem ser colocadas em planície ou campo!' };
+        }
+
+        // Validação: cidade não pode ser adjacente a outra cidade
+        if (this.isAdjacentToCity(session.boardState, row, col)) {
+            return { success: false, error: 'ADJACENT_TO_CITY', message: 'Cidades não podem ser colocadas adjacentes a outras cidades!' };
+        }
+
+        // Inicializa array de peças
+        hex.pieces = [];
+
+        // Coloca a cidade
+        hex.pieces.push({
+            type: 'city',
+            owner: socket.id,
+            color: player.color
+        });
+        player.pieces.city--;
+
+        // Coloca o cavaleiro automaticamente na mesma casa
+        hex.pieces.push({
+            type: 'knight',
+            owner: socket.id,
+            color: player.color
+        });
+        player.pieces.knight--;
+
+        // Atualiza contagem de cidades colocadas neste turno
+        state.citiesPlacedInTurn++;
+
+        io.to(roomId).emit('piecePlaced', {
+            row, col, pieceType: 'city', playerId: socket.id, playerColor: player.color
+        });
+        io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
+        io.to(roomId).emit('drawPlayers', Object.values(session.players));
+
+        // Verifica se o jogador terminou seu turno
+        if (state.citiesPlacedInTurn >= currentTurn.citiesToPlace) {
+            // Passa para o próximo na sequência
+            return this.advanceInitialPlacement(roomId, io);
+        } else {
+            // Ainda precisa colocar mais cidades neste turno
+            const remaining = currentTurn.citiesToPlace - state.citiesPlacedInTurn;
+            io.to(roomId).emit('initialPlacementUpdate', {
+                message: `Cidade colocada! Coloque mais ${remaining} cidade(s).`,
+                currentStep: 'city',
+                citiesRemaining: remaining
+            });
+            return { success: true, citiesRemaining: remaining };
+        }
+    }
+
+    // Avança para o próximo jogador no posicionamento inicial
+    advanceInitialPlacement(roomId, io) {
+        const session = this.session[roomId];
+        const state = session.initialPlacementState;
+
+        state.currentSequenceIndex++;
+        state.citiesPlacedInTurn = 0;
+
+        // Verifica se terminou a sequência
+        if (state.currentSequenceIndex >= state.placementSequence.length) {
+            // Terminou a fase de posicionamento inicial
+            return this.endInitialPlacement(roomId, io);
+        }
+
+        // Próximo na sequência
+        const nextTurn = state.placementSequence[state.currentSequenceIndex];
+        session.playerOnTurn = session.players[nextTurn.playerId];
+
+        io.to(roomId).emit('turnChanged', {
+            currentPlayerId: session.playerOnTurn.id,
+            currentPlayerColor: session.playerOnTurn.color
+        });
+
+        io.to(roomId).emit('initialPlacementUpdate', {
+            message: `Sua vez! Coloque ${nextTurn.citiesToPlace} cidade(s).`,
+            currentStep: 'city',
+            citiesRemaining: nextTurn.citiesToPlace
+        });
+
+        return { success: true, citiesRemaining: nextTurn.citiesToPlace };
+    }
+
+    // Finaliza a fase de posicionamento inicial e inicia a batalha
+    endInitialPlacement(roomId, io) {
+        const session = this.session[roomId];
+
+        session.gamePhase = GAME_PHASES.BATTLE;
+
+        // Define o primeiro jogador para a fase de batalha (o líder)
+        const leaderPlayer = session.players[session.leaderId];
+        session.playerOnTurn = leaderPlayer || Object.values(session.players)[0];
+
+        io.to(roomId).emit('phaseChanged', { phase: 'battle' });
+        io.to(roomId).emit('turnChanged', {
+            currentPlayerId: session.playerOnTurn.id,
+            currentPlayerColor: session.playerOnTurn.color
+        });
+        io.to(roomId).emit('initialPlacementComplete', {
+            message: 'Posicionamento inicial completo! Iniciando fase de batalha!'
+        });
+
+        console.log(`Fase de posicionamento inicial completa na sala ${roomId}. Iniciando batalha.`);
+
+        return { success: true, phaseComplete: true };
+    }
+
+    // Verifica se duas posições são adjacentes
+    isAdjacentToPosition(row1, col1, row2, col2) {
+        const directions = row1 % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
+
+        return directions.some(([dRow, dCol]) => {
+            return (row1 + dRow === row2) && (col1 + dCol === col2);
+        });
+    }
+
+    // Verifica se a posição é adjacente a alguma cidade existente
+    isAdjacentToCity(boardState, row, col) {
+        const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
+
+        return directions.some(([dRow, dCol]) => {
+            const newRow = row + dRow;
+            const newCol = col + dCol;
+
+            // Verifica limites do tabuleiro
+            if (newRow < 0 || newRow >= boardState.length) return false;
+            if (newCol < 0 || newCol >= boardState[0].length) return false;
+
+            const hex = boardState[newRow][newCol];
+
+            // Verifica se tem uma cidade neste hexágono
+            if (hex.pieces && hex.pieces.length > 0) {
+                return hex.pieces.some(piece => piece.type === 'city');
+            }
+
+            return false;
+        });
     }
 
     // Reinicia o jogo (apenas líder com confirmação do roomId)
@@ -189,6 +442,13 @@ export class Sessions {
         session.gamePhase = GAME_PHASES.WAITING;
         session.gameStarted = false;
         session.lockedForEntry = false;
+
+        // Reseta o estado de posicionamento inicial
+        session.initialPlacementState = {
+            placementSequence: [],
+            currentSequenceIndex: 0,
+            citiesPlacedInTurn: 0
+        };
 
         // Reseta as texturas e peças de todos os jogadores
         const players = Object.values(session.players);
@@ -317,6 +577,12 @@ export class Sessions {
 
         if (!session) {
             return { success: false, error: 'ROOM_NOT_FOUND', message: 'Sala não encontrada!' };
+        }
+
+        // Bloqueia colocação manual de texturas - apenas o líder pode distribuir quando houver 4 jogadores
+        const players = Object.values(session.players);
+        if (players.length < 4) {
+            return { success: false, error: 'NOT_ENOUGH_PLAYERS', message: 'Aguarde 4 jogadores para iniciar!' };
         }
 
         const { row, col, texture } = payload;

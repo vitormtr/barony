@@ -75,6 +75,10 @@ export function getCurrentTurnPlayerId() {
   return currentTurnPlayerId;
 }
 
+export function getLocalPlayerId() {
+  return localPlayerId;
+}
+
 export function hideTurnIndicator() {
   if (turnIndicator) {
     turnIndicator.style.display = 'none';
