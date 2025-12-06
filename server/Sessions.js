@@ -386,6 +386,357 @@ export class Sessions {
         return { success: true, phaseComplete: true };
     }
 
+    // ========== AÇÕES DA FASE DE BATALHA ==========
+
+    // Processa uma ação de batalha
+    battleAction(socket, io, payload) {
+        const roomId = this.getRoomIdBySocketId(socket.id);
+        const session = this.session[roomId];
+
+        if (!session) {
+            return { success: false, message: 'Sala não encontrada!' };
+        }
+
+        if (session.gamePhase !== GAME_PHASES.BATTLE) {
+            return { success: false, message: 'Não está na fase de batalha!' };
+        }
+
+        const player = session.players[socket.id];
+        if (session.playerOnTurn.id !== socket.id) {
+            return { success: false, message: 'Não é seu turno!' };
+        }
+
+        const { action } = payload;
+
+        switch (action) {
+            case 'recruitment':
+                return this.actionRecruitment(session, player, payload, io, roomId);
+            case 'movement':
+                return this.actionMovement(session, player, payload, io, roomId);
+            case 'construction':
+                return this.actionConstruction(session, player, payload, io, roomId);
+            case 'newCity':
+                return this.actionNewCity(session, player, payload, io, roomId);
+            case 'expedition':
+                return this.actionExpedition(session, player, payload, io, roomId);
+            case 'nobleTitle':
+                return this.actionNobleTitle(session, player, payload, io, roomId);
+            default:
+                return { success: false, message: 'Ação inválida!' };
+        }
+    }
+
+    // RECRUTAMENTO: Adiciona 2 cavaleiros em uma cidade (3 se adjacente a lago)
+    actionRecruitment(session, player, payload, io, roomId) {
+        const { row, col } = payload;
+        const hex = session.boardState[row]?.[col];
+
+        if (!hex) {
+            return { success: false, message: 'Hexágono inválido!' };
+        }
+
+        // Verifica se tem cidade do jogador
+        const hasCity = hex.pieces?.some(p => p.type === 'city' && p.color === player.color);
+        if (!hasCity) {
+            return { success: false, message: 'Selecione uma cidade sua!' };
+        }
+
+        // Verifica se está adjacente a água (lago)
+        const adjacentToWater = this.isAdjacentToWater(session.boardState, row, col);
+        const knightsToAdd = adjacentToWater ? 3 : 2;
+
+        // Verifica se tem cavaleiros suficientes
+        if (player.pieces.knight < knightsToAdd) {
+            return { success: false, message: `Você não tem ${knightsToAdd} cavaleiros disponíveis!` };
+        }
+
+        // Adiciona cavaleiros
+        for (let i = 0; i < knightsToAdd; i++) {
+            hex.pieces.push({
+                type: 'knight',
+                owner: player.id,
+                color: player.color
+            });
+            player.pieces.knight--;
+        }
+
+        this.emitBoardUpdate(session, io, roomId);
+
+        return {
+            success: true,
+            message: `${knightsToAdd} cavaleiros recrutados!${adjacentToWater ? ' (Bônus de lago!)' : ''}`
+        };
+    }
+
+    // MOVIMENTO: Move um cavaleiro para hexágono adjacente
+    actionMovement(session, player, payload, io, roomId) {
+        const { from, to } = payload;
+        const fromHex = session.boardState[from.row]?.[from.col];
+        const toHex = session.boardState[to.row]?.[to.col];
+
+        if (!fromHex || !toHex) {
+            return { success: false, message: 'Hexágono inválido!' };
+        }
+
+        // Verifica se tem cavaleiro do jogador no hex de origem
+        const knightIndex = fromHex.pieces?.findIndex(p => p.type === 'knight' && p.color === player.color);
+        if (knightIndex === -1 || knightIndex === undefined) {
+            return { success: false, message: 'Não há cavaleiro seu neste hexágono!' };
+        }
+
+        // Verifica adjacência
+        if (!this.isAdjacentToPosition(from.row, from.col, to.row, to.col)) {
+            return { success: false, message: 'O destino deve ser adjacente!' };
+        }
+
+        // Verifica se destino tem textura e não é água
+        if (!toHex.texture || toHex.texture === 'water.png') {
+            return { success: false, message: 'Não pode mover para água ou hex vazio!' };
+        }
+
+        // Move o cavaleiro
+        const knight = fromHex.pieces.splice(knightIndex, 1)[0];
+        if (!toHex.pieces) toHex.pieces = [];
+        toHex.pieces.push(knight);
+
+        this.emitBoardUpdate(session, io, roomId);
+
+        return { success: true, message: 'Cavaleiro movido!' };
+    }
+
+    // CONSTRUÇÃO: Substitui cavaleiro por vila ou fortaleza
+    actionConstruction(session, player, payload, io, roomId) {
+        const { row, col, buildType } = payload;
+        const hex = session.boardState[row]?.[col];
+
+        if (!hex) {
+            return { success: false, message: 'Hexágono inválido!' };
+        }
+
+        // Verifica se tem cavaleiro do jogador
+        const knightIndex = hex.pieces?.findIndex(p => p.type === 'knight' && p.color === player.color);
+        if (knightIndex === -1 || knightIndex === undefined) {
+            return { success: false, message: 'Não há cavaleiro seu neste hexágono!' };
+        }
+
+        // Verifica se já tem estrutura
+        const hasStructure = hex.pieces?.some(p => ['city', 'stronghold', 'village'].includes(p.type));
+        if (hasStructure) {
+            return { success: false, message: 'Já existe uma estrutura neste hexágono!' };
+        }
+
+        // Verifica peça disponível
+        if (buildType === 'village' && player.pieces.village <= 0) {
+            return { success: false, message: 'Você não tem vilas disponíveis!' };
+        }
+        if (buildType === 'stronghold' && player.pieces.stronghold <= 0) {
+            return { success: false, message: 'Você não tem fortalezas disponíveis!' };
+        }
+
+        // Validação de terreno para fortaleza (apenas montanha ou floresta)
+        if (buildType === 'stronghold') {
+            if (!['mountain.png', 'forest.png'].includes(hex.texture)) {
+                return { success: false, message: 'Fortalezas só podem ser construídas em montanha ou floresta!' };
+            }
+        }
+
+        // Remove o cavaleiro (volta para reserva)
+        hex.pieces.splice(knightIndex, 1);
+        player.pieces.knight++;
+
+        // Adiciona a estrutura
+        hex.pieces.push({
+            type: buildType,
+            owner: player.id,
+            color: player.color
+        });
+        player.pieces[buildType]--;
+
+        // Ganha recurso correspondente ao terreno
+        const resource = player.addResource(hex.texture);
+
+        this.emitBoardUpdate(session, io, roomId);
+
+        const resourceName = resource ? this.getResourceName(resource) : '';
+        return {
+            success: true,
+            message: `${buildType === 'village' ? 'Vila' : 'Fortaleza'} construída!${resource ? ` +1 ${resourceName}` : ''}`
+        };
+    }
+
+    // NOVA CIDADE: Substitui vila por cidade
+    actionNewCity(session, player, payload, io, roomId) {
+        const { row, col } = payload;
+        const hex = session.boardState[row]?.[col];
+
+        if (!hex) {
+            return { success: false, message: 'Hexágono inválido!' };
+        }
+
+        // Verifica se tem vila do jogador
+        const villageIndex = hex.pieces?.findIndex(p => p.type === 'village' && p.color === player.color);
+        if (villageIndex === -1 || villageIndex === undefined) {
+            return { success: false, message: 'Não há vila sua neste hexágono!' };
+        }
+
+        // Verifica se tem cidade disponível
+        if (player.pieces.city <= 0) {
+            return { success: false, message: 'Você não tem cidades disponíveis!' };
+        }
+
+        // Remove a vila (volta para reserva)
+        hex.pieces.splice(villageIndex, 1);
+        player.pieces.village++;
+
+        // Adiciona a cidade
+        hex.pieces.push({
+            type: 'city',
+            owner: player.id,
+            color: player.color
+        });
+        player.pieces.city--;
+
+        // Ganha 10 pontos de vitória
+        player.addVictoryPoints(10);
+
+        this.emitBoardUpdate(session, io, roomId);
+
+        return { success: true, message: 'Nova cidade fundada! +10 pontos de vitória!' };
+    }
+
+    // EXPEDIÇÃO: Coloca cavaleiro na borda do tabuleiro
+    actionExpedition(session, player, payload, io, roomId) {
+        const { row, col } = payload;
+        const hex = session.boardState[row]?.[col];
+
+        if (!hex) {
+            return { success: false, message: 'Hexágono inválido!' };
+        }
+
+        // Verifica se precisa de 2 cavaleiros na reserva
+        if (player.pieces.knight < 2) {
+            return { success: false, message: 'Você precisa de 2 cavaleiros na reserva!' };
+        }
+
+        // Verifica se hex tem textura e não é água
+        if (!hex.texture || hex.texture === 'water.png') {
+            return { success: false, message: 'Selecione um hexágono válido!' };
+        }
+
+        // Verifica se está vazio
+        if (hex.pieces && hex.pieces.length > 0) {
+            return { success: false, message: 'O hexágono deve estar vazio!' };
+        }
+
+        // Verifica se é borda
+        if (!this.isBorderHex(session.boardState, row, col)) {
+            return { success: false, message: 'Selecione um hexágono na borda do tabuleiro!' };
+        }
+
+        // Remove 2 cavaleiros da reserva, 1 volta para a caixa (permanentemente perdido)
+        player.pieces.knight -= 2;
+
+        // Coloca 1 cavaleiro no tabuleiro
+        if (!hex.pieces) hex.pieces = [];
+        hex.pieces.push({
+            type: 'knight',
+            owner: player.id,
+            color: player.color
+        });
+
+        this.emitBoardUpdate(session, io, roomId);
+
+        return { success: true, message: 'Expedição realizada! 1 cavaleiro posicionado na borda.' };
+    }
+
+    // TÍTULO NOBRE: Gasta 15 recursos para subir de título
+    actionNobleTitle(session, player, payload, io, roomId) {
+        const totalResources = player.getTotalResources();
+
+        if (totalResources < 15) {
+            return { success: false, message: `Recursos insuficientes! ${totalResources}/15` };
+        }
+
+        if (player.title === 'duke') {
+            return { success: false, message: 'Você já é Duque!' };
+        }
+
+        // Gasta 15 recursos
+        player.spendResources(15);
+
+        // Sobe de título
+        const oldTitle = player.getTitleName();
+        player.promoteTitle();
+        const newTitle = player.getTitleName();
+
+        this.emitBoardUpdate(session, io, roomId);
+
+        return { success: true, message: `Título elevado de ${oldTitle} para ${newTitle}!` };
+    }
+
+    // Passa o turno para o próximo jogador
+    endTurn(socket, io) {
+        const roomId = this.getRoomIdBySocketId(socket.id);
+        const session = this.session[roomId];
+
+        if (!session) return;
+
+        if (session.playerOnTurn.id !== socket.id) return;
+
+        const players = Object.values(session.players);
+        const currentIndex = players.findIndex(p => p.id === socket.id);
+        const nextIndex = (currentIndex + 1) % players.length;
+        session.playerOnTurn = players[nextIndex];
+
+        io.to(roomId).emit('turnChanged', {
+            currentPlayerId: session.playerOnTurn.id,
+            currentPlayerColor: session.playerOnTurn.color
+        });
+
+        io.to(roomId).emit('drawPlayers', players);
+    }
+
+    // Utilitários
+    isAdjacentToWater(boardState, row, col) {
+        const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
+
+        return directions.some(([dRow, dCol]) => {
+            const newRow = row + dRow;
+            const newCol = col + dCol;
+            if (newRow < 0 || newRow >= boardState.length) return false;
+            if (newCol < 0 || newCol >= boardState[0].length) return false;
+            return boardState[newRow][newCol].texture === 'water.png';
+        });
+    }
+
+    isBorderHex(boardState, row, col) {
+        const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
+
+        for (const [dRow, dCol] of directions) {
+            const newRow = row + dRow;
+            const newCol = col + dCol;
+            if (newRow < 0 || newRow >= boardState.length) return true;
+            if (newCol < 0 || newCol >= boardState[0].length) return true;
+            if (!boardState[newRow][newCol].texture) return true;
+        }
+        return false;
+    }
+
+    getResourceName(resource) {
+        const names = {
+            field: 'Campo',
+            forest: 'Floresta',
+            mountain: 'Montanha',
+            plain: 'Planície'
+        };
+        return names[resource] || resource;
+    }
+
+    emitBoardUpdate(session, io, roomId) {
+        io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
+        io.to(roomId).emit('drawPlayers', Object.values(session.players));
+    }
+
     // Verifica se duas posições são adjacentes
     isAdjacentToPosition(row1, col1, row2, col2) {
         const directions = row1 % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;

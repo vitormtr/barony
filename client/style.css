@@ -1043,6 +1043,175 @@ button:active {
   font-size: 1rem;
 }
 
+/* ========================================
+   MENU DE AÇÕES (FASE DE BATALHA)
+   ======================================== */
+
+.action-menu {
+  position: fixed;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(145deg, var(--color-surface), var(--color-background));
+  border: 2px solid var(--color-primary);
+  border-radius: 16px;
+  padding: 16px 20px;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  animation: slideUp 0.3s ease;
+}
+
+.action-menu-title {
+  text-align: center;
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--color-primary);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 500px;
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 14px;
+  min-width: 75px;
+  background: linear-gradient(145deg, var(--color-surface-light), var(--color-surface));
+  border: 2px solid var(--color-surface-light);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.action-btn:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+}
+
+.action-btn:active {
+  transform: translateY(0);
+}
+
+.action-icon {
+  font-size: 1.5rem;
+}
+
+.action-name {
+  font-size: 0.7rem;
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Hexágonos destacados para ações */
+.hexagon.action-highlight {
+  filter: brightness(1.3);
+  animation: actionPulse 1s ease-in-out infinite;
+}
+
+.hexagon.action-selected {
+  filter: brightness(1.4) saturate(1.2);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
+}
+
+.hexagon.action-selected::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  background: var(--color-primary);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  z-index: -2;
+  animation: selectedPulse 1s ease infinite;
+}
+
+.hexagon.action-target {
+  filter: brightness(1.2);
+  cursor: pointer;
+}
+
+.hexagon.action-target::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(46, 125, 50, 0.4);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+@keyframes actionPulse {
+  0%, 100% { filter: brightness(1.3); }
+  50% { filter: brightness(1.5); }
+}
+
+/* Menu de construção */
+.construction-menu {
+  position: fixed;
+  z-index: 9999;
+  transform: translate(-50%, -100%);
+  background: linear-gradient(145deg, var(--color-surface), var(--color-background));
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+.construction-title {
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.construction-btn {
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  min-width: auto;
+  border-radius: 8px;
+}
+
+.construction-btn.cancel {
+  background: var(--color-surface);
+  border-color: var(--color-surface-light);
+  color: var(--color-text-muted);
+}
+
+/* Botão de encerrar ação */
+.end-action-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  padding: 12px 24px;
+  background: linear-gradient(145deg, #f57c00, #e65100);
+  border: 2px solid #ffb74d;
+  border-radius: 8px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 1001;
+  animation: fadeIn 0.3s ease;
+}
+
+.end-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 124, 0, 0.4);
+}
+
 /* Cores das peças por jogador */
 .piece-red {
   background: linear-gradient(145deg, #c62828, #8e0000);

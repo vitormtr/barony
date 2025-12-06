@@ -20,6 +20,7 @@ import {
   showBoardCompleteTransition
 } from './texture-menu.js';
 import { showPlayerColor } from './playerColorIndicator.js';
+import { initBattlePhase, onTurnChanged as actionMenuTurnChanged, hideActionMenu } from './actionMenu.js';
 
 export const socket = io();
 export let player = null;
@@ -105,6 +106,8 @@ function handleSocketError(message) {
 function handleTurnChanged(turnData) {
   console.log('Turno alterado:', turnData);
   updateTurnIndicator(turnData);
+  // Notifica o menu de ações sobre mudança de turno
+  actionMenuTurnChanged();
 }
 
 function handlePlayerDisconnected(data) {
@@ -169,6 +172,7 @@ function handleGameRestarted(data) {
   enableDistributionButton();
   resetPlacementState();
   enableTextureMenu();
+  hideActionMenu();
 }
 
 function handleRestartResult(result) {
@@ -220,6 +224,8 @@ function handleInitialPlacementComplete(data) {
   console.log('Posicionamento inicial completo:', data);
   setPhase('battle');
   showSuccess(data.message);
+  // Inicia a fase de batalha com o menu de ações
+  setTimeout(() => initBattlePhase(), 500);
 }
 
 function handlePiecePlaced(data) {

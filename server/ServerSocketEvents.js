@@ -147,6 +147,42 @@ export function handleSocketEvents(socket, io, sessionManager) {
     }
   };
 
+  // Handler para colocar peça na fase de posicionamento inicial
+  const handlePlacePiece = (payload) => {
+    try {
+      logger.info('Solicitação de colocação de peça', { socketId: socket.id, payload });
+      const result = sessionManager.placePiece(socket, io, payload);
+
+      socket.emit('placePieceResult', result);
+
+      if (!result.success) {
+        socket.emit(SOCKET_EVENTS.ERROR, result.message);
+      }
+    } catch (error) {
+      handleError(error, 'placePiece', { payload });
+    }
+  };
+
+  // Handler para ações da fase de batalha
+  const handleBattleAction = (payload) => {
+    try {
+      logger.info('Ação de batalha recebida', { socketId: socket.id, action: payload.action });
+      sessionManager.battleAction(socket, io, payload);
+    } catch (error) {
+      handleError(error, 'battleAction', { payload });
+    }
+  };
+
+  // Handler para encerrar turno
+  const handleEndTurn = () => {
+    try {
+      logger.info('Encerrando turno', { socketId: socket.id });
+      sessionManager.endTurn(socket, io);
+    } catch (error) {
+      handleError(error, 'endTurn');
+    }
+  };
+
   socket.on(SOCKET_EVENTS.CREATE_ROOM, handleCreateRoom);
   socket.on(SOCKET_EVENTS.JOIN_ROOM, handleJoinRoom);
   socket.on(SOCKET_EVENTS.APPLY_TEXTURE, handleApplyTexture);
@@ -155,4 +191,7 @@ export function handleSocketEvents(socket, io, sessionManager) {
   socket.on(SOCKET_EVENTS.REQUEST_PLAYER_DATA, handleRequestPlayerData);
   socket.on('randomDistribution', handleRandomDistribution);
   socket.on('restartGame', handleRestartGame);
+  socket.on('placePiece', handlePlacePiece);
+  socket.on('battleAction', handleBattleAction);
+  socket.on('endTurn', handleEndTurn);
 }
