@@ -15,7 +15,7 @@ function initializeMenu() {
 }
 
 function setupEventListeners() {
-  domHelper.onClick(createRoomBtn, handleCreateRoom); 
+  domHelper.onClick(createRoomBtn, handleCreateRoom);
   domHelper.onClick(joinRoomBtn, handleJoinRoom);
 }
 
@@ -37,7 +37,7 @@ export function hideMenu() {
     elements.roomIdInput,
     elements.menu
   ], 'none');
-  
+
   document.body.style.backgroundImage = 'none';
 }
 
