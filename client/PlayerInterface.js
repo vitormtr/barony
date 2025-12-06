@@ -21,6 +21,7 @@ function clearElement(element) {
 
 function createPlayerElement(player) {
   const container = createElementWithClass("div", CONFIG.PLAYER_CLASSES.container);
+  container.dataset.playerId = player.id;
   container.appendChild(createProfileImage(player));
   container.appendChild(createPlayerInfo(player));
 

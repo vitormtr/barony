@@ -1,29 +1,34 @@
 import { socket, emitUpdatePlayerTexture, player, emitRequestPlayerData } from "./ClientSocketEvents.js";
 import { CONFIG } from "./config.js";
+import { showError, showSuccess, showWarning } from "./notifications.js";
+import { isMyTurn } from "./turnIndicator.js";
+
+let isProcessing = false;
 
 export async function showTextureMenu(hex) {
   const menu = getOrCreateTextureMenu();
-  
-  await emitRequestPlayerData(); 
-  
+
+  await emitRequestPlayerData();
+
   if (menu.dataset.lastHex !== `${hex.dataset.row}-${hex.dataset.col}`) {
     menu.innerHTML = '';
     Object.keys(CONFIG.TEXTURES).forEach(texture => {
       const option = createTextureOption(texture, hex);
       menu.appendChild(option);
-      updateOptionCount(option, texture);
     });
     menu.dataset.lastHex = `${hex.dataset.row}-${hex.dataset.col}`;
   }
-  
+
   updateAllOptionCounts();
   menu.style.display = 'flex';
 }
 
-function updateOptionCount(option, textureName) {
+// Função unificada para atualizar contagem e estado de uma opção
+function updateOptionState(option, textureName) {
   const textureKey = textureName.replace('.png', '');
-  const count = player.hexCount[textureKey] || 0;
-  
+  const count = player?.hexCount?.[textureKey] || 0;
+
+  // Atualiza label de contagem
   let label = option.querySelector('.hex-count');
   if (!label) {
     label = document.createElement('span');
@@ -31,15 +36,21 @@ function updateOptionCount(option, textureName) {
     option.appendChild(label);
   }
   label.textContent = count;
+
+  // Desabilita se não tem mais dessa textura
+  if (count <= 0) {
+    option.classList.add('disabled');
+  } else {
+    option.classList.remove('disabled');
+  }
 }
 
 function updateAllOptionCounts() {
   const options = document.querySelectorAll('.texture-option');
   options.forEach(option => {
-    const bgImage = getComputedStyle(option).backgroundImage;
-    const textureMatch = bgImage.match(/\/images\/(.+?)\./);
-    if (textureMatch) {
-      updateOptionCount(option, textureMatch[1]);
+    const textureName = option.dataset.texture;
+    if (textureName) {
+      updateOptionState(option, textureName);
     }
   });
 }
@@ -58,52 +69,57 @@ function createTextureOption(textureFile, hex) {
   const container = document.createElement('div');
   container.classList.add('texture-option');
   container.style.backgroundImage = `url(/images/${textureFile})`;
-  
+  container.dataset.texture = textureFile;
+
   container.onclick = createTextureClickHandler(hex, textureFile);
-  
+
   return container;
 }
 
 function createTextureClickHandler(hex, texture) {
   return () => {
+    // Verifica se está processando uma requisição
+    if (isProcessing) {
+      showWarning('Aguarde a ação anterior ser processada...');
+      return;
+    }
+
+    // Verifica se a textura está desabilitada
+    const textureKey = texture.replace('.png', '');
+    if ((player?.hexCount?.[textureKey] || 0) <= 0) {
+      showError('Você não tem mais dessa textura!');
+      return;
+    }
+
+    // Validação local (antes de enviar ao servidor)
     if (!validateTexturePlacement(hex)) return;
+
     requestTexturePlacement(hex, texture);
   };
 }
 
-export function updateCountLabel(player) {
-  const textureOptions = document.querySelectorAll('.texture-option');
-  
-  textureOptions.forEach(option => {
-    const backgroundStyle = getComputedStyle(option).backgroundImage;
-    const textureMatch = backgroundStyle.match(/\/images\/(.+?)\./);
-    
-    if (textureMatch) {
-      const texturePath = textureMatch[1];
-      const count = player.hexCount[texturePath] || '0';
-      
-      let label = option.querySelector('.hex-count');
-      if (!label) {
-        label = document.createElement('span');
-        label.classList.add('hex-count');
-        option.appendChild(label);
-      }
-      
-      label.textContent = count;
-    }
-  });
+// Função simplificada para atualizar labels (usa updateOptionState internamente)
+export function updateCountLabel(playerData) {
+  updateAllOptionCounts();
 }
 
 function validateTexturePlacement(hex) {
+  // Verifica se é o turno do jogador
+  if (!isMyTurn()) {
+    showWarning('Não é seu turno!');
+    return false;
+  }
+
   if (getHexTexture(hex) !== null) {
-    alert('Este hexágono já possui uma textura!');
+    showError('Este hexágono já possui uma textura!');
     return false;
   }
 
   if (hasAnyTexturedHex() && !isAdjacentToTexturedHex(hex)) {
-    alert('A textura só pode ser colocada em um hexágono adjacente ao primeiro!');
+    showError('A textura deve ser adjacente a uma textura existente!');
     return false;
   }
+
   return true;
 }
 
@@ -114,22 +130,58 @@ function requestTexturePlacement(hex, texture) {
     texture
   };
 
+  // Ativa loading state
+  isProcessing = true;
+  showLoadingOverlay(true);
+
   socket.emit('applyTextureToBoard', payload);
-  socket.once('textureApplied', (success) => {
-    handleTextureApplication(success, texture);
+  socket.once('textureApplied', (result) => {
+    // Desativa loading state
+    isProcessing = false;
+    showLoadingOverlay(false);
+
+    handleTextureApplication(result, texture);
     emitRequestPlayerData();
-    const currentPlayer = player;
-    updateCountLabel(currentPlayer);
+    updateAllOptionCounts();
   });
+
+  // Timeout de segurança
+  setTimeout(() => {
+    if (isProcessing) {
+      isProcessing = false;
+      showLoadingOverlay(false);
+      showError('Tempo esgotado. Tente novamente.');
+    }
+  }, 5000);
 }
 
-function handleTextureApplication(success, textureUsed) {
-  if (success){
+function handleTextureApplication(result, textureUsed) {
+  if (result.success) {
     emitUpdatePlayerTexture(textureUsed);
     hideTextureMenu();
-    console.log('Textura aplicada com sucesso!');
+    showSuccess('Textura aplicada!');
   } else {
-    console.log('Falha ao aplicar a textura.');
+    // Mostra mensagem de erro do servidor
+    showError(result.message || 'Falha ao aplicar a textura.');
+  }
+}
+
+function showLoadingOverlay(show) {
+  let overlay = document.getElementById('loading-overlay');
+
+  if (show) {
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'loading-overlay';
+      overlay.className = 'loading-overlay';
+      overlay.innerHTML = '<div class="loading-spinner"></div>';
+      document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'flex';
+  } else {
+    if (overlay) {
+      overlay.style.display = 'none';
+    }
   }
 }
 

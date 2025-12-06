@@ -19,7 +19,10 @@ export const CONFIG = {
         PLAYER_TEXTURE_UPDATED: 'playerTextureUpdated',
         REQUEST_PLAYER_DATA: 'requestPlayerData',
         PLAYER_DATA_RESPONSE: 'playerDataResponse',
-        CREATE_ROOM: 'createRoom'
+        CREATE_ROOM: 'createRoom',
+        TURN_CHANGED: 'turnChanged',
+        PLAYER_DISCONNECTED: 'playerDisconnected',
+        PHASE_CHANGED: 'phaseChanged'
       }
   },
   CLASSES: {

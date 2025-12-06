@@ -41,7 +41,10 @@ export function handleSocketEvents(socket, io, sessionManager) {
       const roomId = sessionManager.createSession(socket, io);
       logger.info('Sala criada com sucesso', { roomId, socketId: socket.id });
 
-      io.to(roomId).emit(SOCKET_EVENTS.PLAYER_JOINED_ROOM, sessionManager.getPlayer(socket.id));
+      // Envia o roomId junto com os dados do jogador (criador é o líder)
+      const playerData = sessionManager.getPlayer(socket.id);
+      socket.emit('roomCreated', { roomId, player: playerData, isLeader: true });
+      io.to(roomId).emit(SOCKET_EVENTS.PLAYER_JOINED_ROOM, playerData);
     } catch (error) {
       handleError(error, SOCKET_EVENTS.CREATE_ROOM);
     }
@@ -50,16 +53,23 @@ export function handleSocketEvents(socket, io, sessionManager) {
   const handleJoinRoom = (roomId) => {
     try {
       if (!roomId) throw new Error('ID da sala não fornecido');
-      
+
       logger.info('Jogador entrando na sala', { roomId, socketId: socket.id });
       sessionManager.addPlayerToSession(socket, io, roomId);
-      console.log(sessionManager)
+
       const players = sessionManager.getPlayersInRoom(roomId);
-      logger.info('Jogadores atualizados na sala', { roomId, players });
-      
-      io.to(roomId).emit(SOCKET_EVENTS.DRAW_PLAYERS, players);
-      console.log(sessionManager.getPlayer(socket.id))
-      io.to(roomId).emit(SOCKET_EVENTS.PLAYER_JOINED_ROOM, sessionManager.getPlayer(socket.id));
+      const playerData = sessionManager.getPlayer(socket.id);
+
+      // Se o jogador foi adicionado com sucesso
+      if (playerData) {
+        logger.info('Jogadores atualizados na sala', { roomId, playersCount: players.length });
+
+        // Envia o roomId para o jogador que entrou
+        socket.emit('roomJoined', { roomId, player: playerData });
+
+        io.to(roomId).emit(SOCKET_EVENTS.DRAW_PLAYERS, players);
+        io.to(roomId).emit(SOCKET_EVENTS.PLAYER_JOINED_ROOM, playerData);
+      }
     } catch (error) {
       handleError(error, SOCKET_EVENTS.JOIN_ROOM, { roomId });
     }
@@ -71,11 +81,11 @@ export function handleSocketEvents(socket, io, sessionManager) {
       if (!validatePayload(payload, requiredFields)) {
         throw new Error('Payload inválido');
       }
-      
+
       logger.info('Aplicando textura ao tabuleiro', { payload, socketId: socket.id });
-      const success = sessionManager.applyTextureToBoard(socket, io, payload);
-      
-      socket.emit(SOCKET_EVENTS.TEXTURE_APPLIED, { success });
+      const result = sessionManager.applyTextureToBoard(socket, io, payload);
+
+      socket.emit(SOCKET_EVENTS.TEXTURE_APPLIED, result);
     } catch (error) {
       handleError(error, SOCKET_EVENTS.APPLY_TEXTURE, { payload });
     }
@@ -102,6 +112,39 @@ export function handleSocketEvents(socket, io, sessionManager) {
 
   const handleDisconnect = () => {
     logger.info('Jogador desconectado', { socketId: socket.id });
+    sessionManager.removePlayerFromSession(socket, io);
+  };
+
+  // Handler para distribuição aleatória de texturas (apenas líder)
+  const handleRandomDistribution = () => {
+    try {
+      logger.info('Solicitação de distribuição aleatória', { socketId: socket.id });
+      const result = sessionManager.randomDistribution(socket, io);
+
+      if (result.success) {
+        logger.info('Distribuição aleatória concluída');
+      } else {
+        socket.emit(SOCKET_EVENTS.ERROR, result.message);
+      }
+    } catch (error) {
+      handleError(error, 'randomDistribution');
+    }
+  };
+
+  // Handler para reiniciar o jogo (apenas líder com confirmação)
+  const handleRestartGame = (confirmRoomId) => {
+    try {
+      logger.info('Solicitação de reinício do jogo', { socketId: socket.id, confirmRoomId });
+      const result = sessionManager.restartGame(socket, io, confirmRoomId);
+
+      socket.emit('restartResult', result);
+
+      if (!result.success) {
+        socket.emit(SOCKET_EVENTS.ERROR, result.message);
+      }
+    } catch (error) {
+      handleError(error, 'restartGame');
+    }
   };
 
   socket.on(SOCKET_EVENTS.CREATE_ROOM, handleCreateRoom);
@@ -110,4 +153,6 @@ export function handleSocketEvents(socket, io, sessionManager) {
   socket.on(SOCKET_EVENTS.DISCONNECT, handleDisconnect);
   socket.on(SOCKET_EVENTS.UPDATE_PLAYER_TEXTURE, handleUpdatePlayerTexture);
   socket.on(SOCKET_EVENTS.REQUEST_PLAYER_DATA, handleRequestPlayerData);
+  socket.on('randomDistribution', handleRandomDistribution);
+  socket.on('restartGame', handleRestartGame);
 }
