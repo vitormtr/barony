@@ -25,6 +25,43 @@ import { initBattlePhase, onTurnChanged as actionMenuTurnChanged, hideActionMenu
 export const socket = io();
 export let player = null;
 
+// Session storage keys
+const SESSION_KEYS = {
+  ROOM_ID: 'barony_roomId',
+  PLAYER_COLOR: 'barony_playerColor'
+};
+
+// Save session data for reconnection
+function saveSession(roomId, playerColor) {
+  sessionStorage.setItem(SESSION_KEYS.ROOM_ID, roomId);
+  sessionStorage.setItem(SESSION_KEYS.PLAYER_COLOR, playerColor);
+}
+
+// Clear session data
+function clearSession() {
+  sessionStorage.removeItem(SESSION_KEYS.ROOM_ID);
+  sessionStorage.removeItem(SESSION_KEYS.PLAYER_COLOR);
+}
+
+// Get saved session
+function getSavedSession() {
+  const roomId = sessionStorage.getItem(SESSION_KEYS.ROOM_ID);
+  const playerColor = sessionStorage.getItem(SESSION_KEYS.PLAYER_COLOR);
+  if (roomId && playerColor) {
+    return { roomId, playerColor };
+  }
+  return null;
+}
+
+// Try to reconnect to saved session
+function tryReconnect() {
+  const session = getSavedSession();
+  if (session) {
+    console.log('Attempting to reconnect to room:', session.roomId);
+    socket.emit('rejoinRoom', { roomId: session.roomId, playerColor: session.playerColor });
+  }
+}
+
 socket.on(CONFIG.SOCKET.EVENTS.CONNECT, handleSocketConnect);
 socket.on(CONFIG.SOCKET.EVENTS.UPDATE_BOARD, handleBoardUpdate);
 socket.on(CONFIG.SOCKET.EVENTS.CREATE_BOARD, handleBoardCreation);
@@ -47,6 +84,8 @@ socket.on('piecePlaced', handlePiecePlaced);
 socket.on('youAreLeader', handleYouAreLeader);
 socket.on('dukeAnnounced', handleDukeAnnounced);
 socket.on('gameEnded', handleGameEnded);
+socket.on('rejoinSuccess', handleRejoinSuccess);
+socket.on('rejoinFailed', handleRejoinFailed);
 
 
 export function emitJoinRoom(roomId) {
@@ -69,6 +108,8 @@ export function emitRequestPlayerData() {
 
 function handleSocketConnect() {
   console.log("Connection established with ID:", socket.id);
+  // Try to reconnect to previous session
+  tryReconnect();
 }
 
 function handleBoardUpdate(boardState) {
@@ -145,6 +186,8 @@ function handleRoomCreated(data) {
     player = data.player;
     setLocalPlayer(data.player.id);
     showPlayerColor(data.player.color);
+    // Save session for reconnection
+    saveSession(data.roomId, data.player.color);
   }
 }
 
@@ -160,6 +203,8 @@ function handleRoomJoined(data) {
     player = data.player;
     setLocalPlayer(data.player.id);
     showPlayerColor(data.player.color);
+    // Save session for reconnection
+    saveSession(data.roomId, data.player.color);
   }
 }
 
@@ -287,5 +332,63 @@ function showGameEndScreen(data) {
   `;
 
   document.body.appendChild(screen);
+}
+
+function handleRejoinSuccess(data) {
+  console.log('Rejoin successful:', data);
+
+  // Hide menu and show game
+  hideMenu();
+
+  // Create the board
+  createBoard(data.boardState);
+
+  // Update player data
+  player = data.player;
+  setLocalPlayer(data.player.id);
+  showPlayerColor(data.player.color);
+
+  // Show room info
+  showRoomInfo(data.roomId);
+
+  // Set leader status
+  setLeader(data.isLeader);
+
+  // Draw all players
+  createPlayersElement(Object.values(data.players));
+
+  // Update turn indicator
+  if (data.currentTurn) {
+    updateTurnIndicator(data.currentTurn);
+  }
+
+  // Handle phase-specific UI
+  if (data.gamePhase === 'battle') {
+    setPhase('battle');
+    disableTextureMenu();
+    setTimeout(() => initBattlePhase(), 500);
+  } else if (data.gamePhase === 'initialPlacement') {
+    setPhase('initialPlacement');
+    disableTextureMenu();
+    if (data.placementState) {
+      setPlacementStep(data.placementState.step);
+      setCitiesRemaining(data.placementState.citiesRemaining);
+    }
+    setTimeout(() => addPieceClickHandler(), 100);
+  } else if (data.gamePhase === 'placement') {
+    // Texture placement phase - leader can still distribute
+    if (data.isLeader) {
+      enableDistributionButton();
+    }
+  }
+
+  showSuccess('Reconnected to game!');
+}
+
+function handleRejoinFailed(data) {
+  console.log('Rejoin failed:', data.message);
+  // Clear invalid session
+  clearSession();
+  // User stays on menu screen
 }
 

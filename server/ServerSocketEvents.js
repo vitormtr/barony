@@ -200,6 +200,25 @@ export function handleSocketEvents(socket, io, sessionManager) {
     }
   };
 
+  // Handler to rejoin a room after page refresh
+  const handleRejoinRoom = (payload) => {
+    try {
+      const { roomId, playerColor } = payload;
+      logger.info('Rejoin request', { socketId: socket.id, roomId, playerColor });
+
+      const result = sessionManager.rejoinRoom(socket, io, roomId, playerColor);
+
+      if (result.success) {
+        socket.emit('rejoinSuccess', result.data);
+      } else {
+        socket.emit('rejoinFailed', { message: result.message });
+      }
+    } catch (error) {
+      handleError(error, 'rejoinRoom', { payload });
+      socket.emit('rejoinFailed', { message: 'Failed to rejoin room' });
+    }
+  };
+
   socket.on(SOCKET_EVENTS.CREATE_ROOM, handleCreateRoom);
   socket.on(SOCKET_EVENTS.JOIN_ROOM, handleJoinRoom);
   socket.on(SOCKET_EVENTS.APPLY_TEXTURE, handleApplyTexture);
@@ -212,4 +231,5 @@ export function handleSocketEvents(socket, io, sessionManager) {
   socket.on('battleAction', handleBattleAction);
   socket.on('endTurn', handleEndTurn);
   socket.on('skipToBattle', handleSkipToBattle);
+  socket.on('rejoinRoom', handleRejoinRoom);
 }
