@@ -217,6 +217,57 @@ describe('BattleActions', () => {
             expect(result.success).toBe(false);
             expect(result.message).toContain('mountain');
         });
+
+        it('should remove only one knight when moving from hex with multiple knights', () => {
+            // Setup: city with 3 knights (like after recruitment)
+            board[2][2].texture = 'plain.png';
+            board[2][2].pieces = [
+                { type: 'city', owner: 'p1', color: 'red' },
+                { type: 'knight', owner: 'p1', color: 'red' },
+                { type: 'knight', owner: 'p1', color: 'red' },
+                { type: 'knight', owner: 'p1', color: 'red' }
+            ];
+            board[2][3].texture = 'plain.png';
+            board[2][3].pieces = [];
+
+            const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players);
+
+            expect(result.success).toBe(true);
+            // Origin should have city + 2 knights remaining
+            expect(board[2][2].pieces.length).toBe(3);
+            expect(board[2][2].pieces.filter(p => p.type === 'knight').length).toBe(2);
+            expect(board[2][2].pieces.filter(p => p.type === 'city').length).toBe(1);
+            // Destination should have 1 knight
+            expect(board[2][3].pieces.length).toBe(1);
+            expect(board[2][3].pieces[0].type).toBe('knight');
+        });
+
+        it('should move knight correctly when hex has city and multiple knights', () => {
+            // Setup similar to in-game scenario
+            board[2][2].texture = 'plain.png';
+            board[2][2].pieces = [
+                { type: 'city', owner: 'p1', color: 'red' },
+                { type: 'knight', owner: 'p1', color: 'red' },
+                { type: 'knight', owner: 'p1', color: 'red' }
+            ];
+            board[2][3].texture = 'forest.png';
+            board[2][3].pieces = [];
+
+            // Move first knight
+            const result1 = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players);
+            expect(result1.success).toBe(true);
+            expect(board[2][2].pieces.filter(p => p.type === 'knight').length).toBe(1);
+            expect(board[2][3].pieces.length).toBe(1);
+
+            // Move second knight to different hex
+            board[2][1].texture = 'plain.png';
+            board[2][1].pieces = [];
+            const result2 = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 1 } }, players);
+            expect(result2.success).toBe(true);
+            expect(board[2][2].pieces.filter(p => p.type === 'knight').length).toBe(0);
+            expect(board[2][2].pieces.filter(p => p.type === 'city').length).toBe(1);
+            expect(board[2][1].pieces.length).toBe(1);
+        });
     });
 
     describe('processCombat', () => {
