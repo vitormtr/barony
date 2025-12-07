@@ -4,7 +4,8 @@ import {
     INITIAL_PIECES,
     INITIAL_HEX_COUNT,
     INITIAL_RESOURCES,
-    TERRAIN_TO_RESOURCE
+    TERRAIN_TO_RESOURCE,
+    RESOURCE_VALUES
 } from './constants.js';
 
 export class Player {
@@ -50,21 +51,42 @@ export class Player {
         return null;
     }
 
-    // Calculate total resources
+    // Calculate total resource points (each resource type has different value)
     getTotalResources() {
+        let total = 0;
+        for (const [resource, count] of Object.entries(this.resources)) {
+            total += count * (RESOURCE_VALUES[resource] || 0);
+        }
+        return total;
+    }
+
+    // Get resource count (number of tokens, not points)
+    getResourceCount() {
         return Object.values(this.resources).reduce((sum, val) => sum + val, 0);
     }
 
-    // Spend resources for noble title
-    spendResources(amount) {
-        let remaining = amount;
-        for (const key of Object.keys(this.resources)) {
+    // Spend resources for noble title (spending points, not tokens)
+    // Prioritizes spending lower value resources first
+    spendResources(pointsToSpend) {
+        let remaining = pointsToSpend;
+
+        // Sort resources by value (lowest first) to spend efficiently
+        const sortedResources = Object.keys(this.resources).sort(
+            (a, b) => (RESOURCE_VALUES[a] || 0) - (RESOURCE_VALUES[b] || 0)
+        );
+
+        for (const resource of sortedResources) {
             if (remaining <= 0) break;
-            const toSpend = Math.min(this.resources[key], remaining);
-            this.resources[key] -= toSpend;
-            remaining -= toSpend;
+            const value = RESOURCE_VALUES[resource] || 0;
+            if (value === 0) continue;
+
+            while (this.resources[resource] > 0 && remaining > 0) {
+                this.resources[resource]--;
+                remaining -= value;
+            }
         }
-        return remaining === 0;
+
+        return remaining <= 0;
     }
 
     // Promote to next title
@@ -95,6 +117,7 @@ export class Player {
           hexCount: this.hexCount,
           pieces: this.pieces,
           resources: this.resources,
+          resourcePoints: this.getTotalResources(),
           title: this.title,
           titleName: this.getTitleName(),
           victoryPoints: this.victoryPoints

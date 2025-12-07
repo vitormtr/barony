@@ -21,6 +21,7 @@ import {
 } from './texture-menu.js';
 import { showPlayerColor } from './playerColorIndicator.js';
 import { initBattlePhase, onTurnChanged as actionMenuTurnChanged, hideActionMenu } from './actionMenu.js';
+import { createTitleCard, updateTitleCard, removeTitleCard } from './titleCard.js';
 
 export const socket = io();
 export let player = null;
@@ -141,6 +142,7 @@ export function handlePlayerDataResponse(playerData) {
   console.log('Player data received:', playerData);
   player = playerData;
   setLocalPlayer(playerData.id);
+  updateTitleCard();
 }
 
 function handleSocketError(message) {
@@ -221,6 +223,7 @@ function handleGameRestarted(data) {
   resetPlacementState();
   enableTextureMenu();
   hideActionMenu();
+  removeTitleCard();
 }
 
 function handleRestartResult(result) {
@@ -272,8 +275,11 @@ function handleInitialPlacementComplete(data) {
   console.log('Initial placement complete:', data);
   setPhase('battle');
   showSuccess(data.message);
-  // Start battle phase with action menu
-  setTimeout(() => initBattlePhase(), 500);
+  // Start battle phase with action menu and title card
+  setTimeout(() => {
+    initBattlePhase();
+    createTitleCard();
+  }, 500);
 }
 
 function handlePiecePlaced(data) {
@@ -366,7 +372,10 @@ function handleRejoinSuccess(data) {
   if (data.gamePhase === 'battle') {
     setPhase('battle');
     disableTextureMenu();
-    setTimeout(() => initBattlePhase(), 500);
+    setTimeout(() => {
+      initBattlePhase();
+      createTitleCard();
+    }, 500);
   } else if (data.gamePhase === 'initialPlacement') {
     setPhase('initialPlacement');
     disableTextureMenu();

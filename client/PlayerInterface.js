@@ -2,13 +2,56 @@ import { CONFIG } from "./config.js";
 
 const HUD_ID = "hud";
 
+const PIECE_ICONS = {
+  knight: '♞',
+  city: '🏰',
+  village: '🏠',
+  stronghold: '🏯'
+};
+
+let isHudMinimized = false;
+
 export function createPlayersElement(players) {
   const hud = getHudElement();
   clearElement(hud);
 
-  players.forEach(player => {
-    hud.appendChild(createPlayerElement(player));
-  });
+  if (isHudMinimized) {
+    // Minimized: show colored dots for each player + expand button
+    const minimizedContainer = document.createElement('div');
+    minimizedContainer.className = 'hud-minimized';
+
+    players.forEach(player => {
+      const dot = document.createElement('span');
+      dot.className = `player-dot player-dot-${player.color}`;
+      dot.title = player.color;
+      minimizedContainer.appendChild(dot);
+    });
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'hud-toggle-btn';
+    toggleBtn.innerHTML = '▲ Players';
+    toggleBtn.addEventListener('click', () => toggleHud(players));
+    minimizedContainer.appendChild(toggleBtn);
+
+    hud.appendChild(minimizedContainer);
+  } else {
+    // Expanded: show all player cards + minimize button
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'hud-toggle-btn hud-minimize-btn';
+    toggleBtn.innerHTML = '▼';
+    toggleBtn.title = 'Minimize';
+    toggleBtn.addEventListener('click', () => toggleHud(players));
+    hud.appendChild(toggleBtn);
+
+    players.forEach(player => {
+      hud.appendChild(createPlayerElement(player));
+    });
+  }
+}
+
+function toggleHud(players) {
+  isHudMinimized = !isHudMinimized;
+  createPlayersElement(players);
 }
 
 function getHudElement() {
@@ -22,7 +65,7 @@ function clearElement(element) {
 function createPlayerElement(player) {
   const container = createElementWithClass("div", CONFIG.PLAYER_CLASSES.container);
   container.dataset.playerId = player.id;
-  container.appendChild(createProfileImage(player));
+  container.classList.add(`player-color-${player.color}`);
   container.appendChild(createPlayerInfo(player));
 
   return container;
@@ -37,15 +80,31 @@ function createProfileImage(player) {
 
 function createPlayerInfo(player) {
   const infoContainer = createElementWithClass("div", CONFIG.PLAYER_CLASSES.info);
-  infoContainer.appendChild(createPlayerName(player.color));
   infoContainer.appendChild(createPiecesElements(player.pieces, player.color));
   return infoContainer;
 }
 
-function createPlayerName(color) {
+function createPlayerName(color, titleName) {
   const nameElement = createElementWithClass("div", CONFIG.PLAYER_CLASSES.name);
-  nameElement.textContent = `${color} Player`;
+  nameElement.textContent = `${capitalizeFirstLetter(color)} - ${titleName || 'Baron'}`;
   return nameElement;
+}
+
+function createResourcesDisplay(resources, resourcePoints) {
+  const container = createElementWithClass("div", "player-resources");
+
+  const points = resourcePoints || 0;
+
+  const totalElement = document.createElement("span");
+  totalElement.className = "resources-total";
+  totalElement.textContent = `${points} pts`;
+  if (points >= 15) {
+    totalElement.classList.add("can-promote");
+    totalElement.title = "Can promote title!";
+  }
+  container.appendChild(totalElement);
+
+  return container;
 }
 
 function createPiecesElements(pieces, color) {
@@ -67,10 +126,10 @@ function createPieceElement(color, pieceType, count) {
 }
 
 function createPieceImage(color, pieceType) {
-  const img = document.createElement("img");
-  img.src = `./images/${color}${pieceType}.png`;
-  img.alt = capitalizeFirstLetter(pieceType);
-  return img;
+  const iconSpan = document.createElement("span");
+  iconSpan.className = `piece-icon piece-icon-${pieceType} piece-color-${color}`;
+  iconSpan.textContent = PIECE_ICONS[pieceType] || '?';
+  return iconSpan;
 }
 
 function createCountElement(pieceType, count) {

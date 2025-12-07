@@ -75,6 +75,14 @@ export const TERRAIN_TO_RESOURCE = {
     'plain.png': 'plain'
 };
 
+// Resource point values (for noble title cost calculation)
+export const RESOURCE_VALUES = {
+    mountain: 2,
+    forest: 3,
+    plain: 4,
+    field: 5
+};
+
 // Cost for noble title promotion
 export const NOBLE_TITLE_COST = 15;
 

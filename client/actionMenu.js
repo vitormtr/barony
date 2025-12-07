@@ -421,8 +421,8 @@ function showNobleTitleConfirmation() {
 
 // ========== UTILITIES ==========
 function calculateTotalResources() {
-  if (!player || !player.resources) return 0;
-  return Object.values(player.resources).reduce((sum, val) => sum + val, 0);
+  // Use pre-calculated resourcePoints from server
+  return player?.resourcePoints || 0;
 }
 
 function isBorderHex(row, col) {

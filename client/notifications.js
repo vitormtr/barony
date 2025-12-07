@@ -11,8 +11,15 @@ function getToastContainer() {
   return toastContainer;
 }
 
+const MAX_TOASTS = 3;
+
 export function showToast(message, type = 'info', duration = 3000) {
   const container = getToastContainer();
+
+  // Limit number of toasts on screen
+  while (container.children.length >= MAX_TOASTS) {
+    container.firstChild.remove();
+  }
 
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
@@ -20,7 +27,6 @@ export function showToast(message, type = 'info', duration = 3000) {
 
   container.appendChild(toast);
 
-  // Remove the toast after duration
   setTimeout(() => {
     toast.remove();
   }, duration);
