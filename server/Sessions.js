@@ -15,6 +15,7 @@ import * as BoardSetup from './BoardSetup.js';
 import * as InitialPlacement from './InitialPlacement.js';
 import * as PlayerManager from './PlayerManager.js';
 import * as TurnManager from './TurnManager.js';
+import * as SaveManager from './SaveManager.js';
 
 export class Sessions {
     constructor() {
@@ -509,6 +510,11 @@ export class Sessions {
             return { success: false, message: 'Incorrect room code!' };
         }
 
+        // If loaded game, check if all players have joined
+        if (session.loadedGame && session.availableColors?.length > 0) {
+            return { success: false, message: `Waiting for ${session.availableColors.length} more player(s) to join!` };
+        }
+
         // Reset board
         session.boardState = createEmptyBoard(15, 15);
         session.gamePhase = GAME_PHASES.WAITING;
@@ -555,6 +561,16 @@ export class Sessions {
 
     addPlayerToSession(socket, io, roomId) {
         const session = this.session[roomId];
+
+        // If this is a loaded game, show color selection
+        if (session.loadedGame && session.availableColors?.length > 0) {
+            socket.emit('loadedGameColorSelect', {
+                roomId,
+                availableColors: session.availableColors,
+                gamePhase: session.gamePhase
+            });
+            return;
+        }
 
         // Use PlayerManager for validation
         const validation = PlayerManager.canPlayerJoin(session);
@@ -804,5 +820,211 @@ export class Sessions {
         }
 
         return { success: true, data: responseData };
+    }
+
+    // ========== SAVE/LOAD GAME ==========
+
+    // Save current game state to file
+    saveGame(socket) {
+        const roomId = this.getRoomIdBySocketId(socket.id);
+        const session = this.session[roomId];
+
+        if (!session) {
+            return { success: false, message: 'Room not found!' };
+        }
+
+        // Only leader can save
+        if (session.leaderId !== socket.id) {
+            return { success: false, message: 'Only the room leader can save the game!' };
+        }
+
+        // Must have started the game
+        if (!session.gameStarted) {
+            return { success: false, message: 'Game has not started yet!' };
+        }
+
+        return SaveManager.saveGame(session, roomId);
+    }
+
+    // List available save files
+    listSaves() {
+        return SaveManager.listSaves();
+    }
+
+    // Load a saved game (creates a new session from save data)
+    loadGame(socket, io, filename) {
+        const loadResult = SaveManager.loadGame(filename);
+
+        if (!loadResult.success) {
+            return loadResult;
+        }
+
+        const saveData = loadResult.data;
+
+        // Create new room with loaded data
+        const roomId = nanoid(6);
+        const boardId = saveData.boardId || nanoid(10);
+
+        // Reconstruct players as Player instances
+        const players = {};
+        for (const [oldId, playerData] of Object.entries(saveData.players)) {
+            // Use socket.id for the loading player, keep color mapping
+            const player = new Player(
+                oldId, // Keep original ID temporarily
+                playerData.color,
+                playerData.hexCount,
+                playerData.pieces,
+                playerData.resources,
+                playerData.title,
+                playerData.victoryPoints
+            );
+            players[oldId] = player;
+        }
+
+        // Create session
+        this.session[roomId] = {
+            boardId,
+            players,
+            boardState: saveData.boardState,
+            playerOnTurn: null, // Will be set after player mapping
+            gamePhase: saveData.gamePhase,
+            gameStarted: saveData.gameStarted,
+            leaderId: socket.id,
+            lockedForEntry: true, // Loaded games are locked
+            initialPlacementState: saveData.initialPlacementState || {
+                round: 0,
+                turnOrder: [],
+                currentTurnIndex: 0,
+                placementStep: null,
+                knightsPlaced: 0,
+                cityPosition: null
+            },
+            // Game ending state
+            gameEnding: saveData.gameEnding || false,
+            dukePlayerId: saveData.dukePlayerId || null,
+            finalRoundStartPlayerId: saveData.finalRoundStartPlayerId || null,
+            // Track which colors need to be claimed
+            loadedGame: true,
+            availableColors: Object.values(saveData.players).map(p => p.color),
+            playerOnTurnColor: saveData.playerOnTurnColor
+        };
+
+        console.log(`Game loaded from ${filename} into room ${roomId}`);
+
+        return {
+            success: true,
+            roomId,
+            playerColors: this.session[roomId].availableColors,
+            gamePhase: saveData.gamePhase,
+            savedAt: saveData.savedAt,
+            boardState: saveData.boardState
+        };
+    }
+
+    // Join a loaded game by claiming a color
+    joinLoadedGame(socket, io, roomId, claimedColor) {
+        const session = this.session[roomId];
+
+        if (!session) {
+            return { success: false, message: 'Room not found!' };
+        }
+
+        if (!session.loadedGame) {
+            return { success: false, message: 'This is not a loaded game!' };
+        }
+
+        // Check if color is available
+        if (!session.availableColors.includes(claimedColor)) {
+            return { success: false, message: 'This color is already claimed!' };
+        }
+
+        // Find the player with this color and update their socket ID
+        const oldPlayerId = Object.keys(session.players).find(
+            id => session.players[id].color === claimedColor
+        );
+
+        if (!oldPlayerId) {
+            return { success: false, message: 'Player not found!' };
+        }
+
+        // Move player to new socket ID
+        const player = session.players[oldPlayerId];
+        player.id = socket.id;
+        delete session.players[oldPlayerId];
+        session.players[socket.id] = player;
+
+        // Remove from available colors
+        session.availableColors = session.availableColors.filter(c => c !== claimedColor);
+
+        // If this is the first player, make them the leader
+        if (Object.keys(session.players).filter(id => id === session.players[id].id).length === 1) {
+            session.leaderId = socket.id;
+        }
+
+        // Update playerOnTurn if needed
+        if (session.playerOnTurnColor === claimedColor) {
+            session.playerOnTurn = player;
+        }
+
+        // Update turn order in initialPlacementState if exists
+        if (session.initialPlacementState?.turnOrder) {
+            const turnIndex = session.initialPlacementState.turnOrder.indexOf(oldPlayerId);
+            if (turnIndex !== -1) {
+                session.initialPlacementState.turnOrder[turnIndex] = socket.id;
+            }
+        }
+
+        // Join socket to room
+        socket.join(roomId);
+
+        console.log(`Player claimed color ${claimedColor} in loaded game ${roomId}`);
+
+        // Check if all players have joined
+        const allJoined = session.availableColors.length === 0;
+
+        if (allJoined) {
+            // Set playerOnTurn based on saved color
+            if (session.playerOnTurnColor) {
+                const turnPlayer = Object.values(session.players).find(
+                    p => p.color === session.playerOnTurnColor
+                );
+                if (turnPlayer) {
+                    session.playerOnTurn = turnPlayer;
+                }
+            }
+
+            // Clean up loaded game flags
+            delete session.loadedGame;
+            delete session.availableColors;
+            delete session.playerOnTurnColor;
+        }
+
+        return {
+            success: true,
+            player: player.toJSON(),
+            allJoined,
+            remainingColors: session.availableColors,
+            isLeader: session.leaderId === socket.id
+        };
+    }
+
+    // Get loaded game info for lobby display
+    getLoadedGameInfo(roomId) {
+        const session = this.session[roomId];
+
+        if (!session || !session.loadedGame) {
+            return null;
+        }
+
+        return {
+            roomId,
+            availableColors: session.availableColors,
+            gamePhase: session.gamePhase,
+            boardState: session.boardState,
+            players: Object.values(session.players).map(p => ({
+                color: p.color,
+                claimed: !session.availableColors.includes(p.color)
+            }))
+        };
     }
 }

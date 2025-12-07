@@ -219,6 +219,96 @@ export function handleSocketEvents(socket, io, sessionManager) {
     }
   };
 
+  // Handler to save game
+  const handleSaveGame = () => {
+    try {
+      logger.info('Save game request', { socketId: socket.id });
+      const result = sessionManager.saveGame(socket);
+      socket.emit('saveGameResult', result);
+    } catch (error) {
+      handleError(error, 'saveGame');
+      socket.emit('saveGameResult', { success: false, message: 'Error saving game' });
+    }
+  };
+
+  // Handler to list saved games
+  const handleListSaves = () => {
+    try {
+      logger.info('List saves request', { socketId: socket.id });
+      const saves = sessionManager.listSaves();
+      socket.emit('savesList', saves);
+    } catch (error) {
+      handleError(error, 'listSaves');
+      socket.emit('savesList', []);
+    }
+  };
+
+  // Handler to load a saved game
+  const handleLoadGame = (filename) => {
+    try {
+      logger.info('Load game request', { socketId: socket.id, filename });
+      const result = sessionManager.loadGame(socket, io, filename);
+
+      if (result.success) {
+        socket.emit('gameLoaded', result);
+      } else {
+        socket.emit('loadGameFailed', { message: result.message });
+      }
+    } catch (error) {
+      handleError(error, 'loadGame');
+      socket.emit('loadGameFailed', { message: 'Error loading game' });
+    }
+  };
+
+  // Handler to join a loaded game by claiming a color
+  const handleJoinLoadedGame = (payload) => {
+    try {
+      const { roomId, color } = payload;
+      logger.info('Join loaded game request', { socketId: socket.id, roomId, color });
+      const result = sessionManager.joinLoadedGame(socket, io, roomId, color);
+
+      if (result.success) {
+        socket.emit('joinedLoadedGame', result);
+
+        // If all players joined, notify everyone and start game
+        if (result.allJoined) {
+          const session = sessionManager.session[roomId];
+          io.to(roomId).emit('loadedGameReady', {
+            boardState: session.boardState,
+            players: Object.values(session.players),
+            gamePhase: session.gamePhase,
+            currentTurn: session.playerOnTurn ? {
+              currentPlayerId: session.playerOnTurn.id,
+              currentPlayerColor: session.playerOnTurn.color
+            } : null
+          });
+        } else {
+          // Notify others about the new player
+          io.to(roomId).emit('playerClaimedColor', {
+            color,
+            remainingColors: result.remainingColors
+          });
+        }
+      } else {
+        socket.emit('joinLoadedGameFailed', { message: result.message });
+      }
+    } catch (error) {
+      handleError(error, 'joinLoadedGame', { payload });
+      socket.emit('joinLoadedGameFailed', { message: 'Error joining loaded game' });
+    }
+  };
+
+  // Handler to get loaded game info
+  const handleGetLoadedGameInfo = (roomId) => {
+    try {
+      const info = sessionManager.getLoadedGameInfo(roomId);
+      socket.emit('loadedGameInfo', info);
+    } catch (error) {
+      handleError(error, 'getLoadedGameInfo');
+      socket.emit('loadedGameInfo', null);
+    }
+  };
+
   socket.on(SOCKET_EVENTS.CREATE_ROOM, handleCreateRoom);
   socket.on(SOCKET_EVENTS.JOIN_ROOM, handleJoinRoom);
   socket.on(SOCKET_EVENTS.APPLY_TEXTURE, handleApplyTexture);
@@ -232,4 +322,9 @@ export function handleSocketEvents(socket, io, sessionManager) {
   socket.on('endTurn', handleEndTurn);
   socket.on('skipToBattle', handleSkipToBattle);
   socket.on('rejoinRoom', handleRejoinRoom);
+  socket.on('saveGame', handleSaveGame);
+  socket.on('listSaves', handleListSaves);
+  socket.on('loadGame', handleLoadGame);
+  socket.on('joinLoadedGame', handleJoinLoadedGame);
+  socket.on('getLoadedGameInfo', handleGetLoadedGameInfo);
 }

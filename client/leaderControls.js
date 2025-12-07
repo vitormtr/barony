@@ -1,5 +1,5 @@
 // Room leader controls module
-import { socket } from './ClientSocketEvents.js';
+import { socket, emitSaveGame } from './ClientSocketEvents.js';
 import { showSuccess, showError, showWarning, showInfo } from './notifications.js';
 import { getRoomId } from './roomInfo.js';
 
@@ -35,6 +35,9 @@ function showLeaderControls() {
       <button id="skipToBattleBtn" class="leader-btn test-btn" title="[TEST] Skip directly to battle phase">
         [TEST] Skip to Battle
       </button>
+      <button id="saveGameBtn" class="leader-btn save-btn" title="Save current game state">
+        💾 Save Game
+      </button>
       <button id="restartGameBtn" class="leader-btn restart-btn" title="Restart game from scratch">
         Restart Game
       </button>
@@ -45,7 +48,16 @@ function showLeaderControls() {
   // Event listeners
   document.getElementById('randomDistributionBtn').addEventListener('click', handleRandomDistribution);
   document.getElementById('skipToBattleBtn').addEventListener('click', handleSkipToBattle);
+  document.getElementById('saveGameBtn').addEventListener('click', handleSaveGame);
   document.getElementById('restartGameBtn').addEventListener('click', showRestartModal);
+}
+
+function handleSaveGame() {
+  if (!isLeader) {
+    showError('Only the leader can save the game!');
+    return;
+  }
+  emitSaveGame();
 }
 
 function handleRandomDistribution() {
@@ -192,5 +204,23 @@ export function enableDistributionButton() {
     btn.disabled = false;
     btn.textContent = 'Distribute Textures';
     btn.classList.remove('disabled');
+  }
+  // Hide save button on restart
+  hideSaveButton();
+}
+
+// Show save button when game is in progress
+export function showSaveButton() {
+  const btn = document.getElementById('saveGameBtn');
+  if (btn) {
+    btn.style.display = 'block';
+  }
+}
+
+// Hide save button
+export function hideSaveButton() {
+  const btn = document.getElementById('saveGameBtn');
+  if (btn) {
+    btn.style.display = 'none';
   }
 }

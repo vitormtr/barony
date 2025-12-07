@@ -5,7 +5,7 @@ import { CONFIG } from './config.js';
 import { showError, showWarning, showInfo, showSuccess } from './notifications.js';
 import { updateTurnIndicator, setLocalPlayer } from './turnIndicator.js';
 import { showRoomInfo } from './roomInfo.js';
-import { setLeader, disableDistributionButton, enableDistributionButton } from './leaderControls.js';
+import { setLeader, disableDistributionButton, enableDistributionButton, showSaveButton, hideSaveButton } from './leaderControls.js';
 import {
   setPhase,
   setPlacementStep,
@@ -87,6 +87,16 @@ socket.on('dukeAnnounced', handleDukeAnnounced);
 socket.on('gameEnded', handleGameEnded);
 socket.on('rejoinSuccess', handleRejoinSuccess);
 socket.on('rejoinFailed', handleRejoinFailed);
+socket.on('saveGameResult', handleSaveGameResult);
+socket.on('savesList', handleSavesList);
+socket.on('gameLoaded', handleGameLoaded);
+socket.on('loadGameFailed', handleLoadGameFailed);
+socket.on('joinedLoadedGame', handleJoinedLoadedGame);
+socket.on('joinLoadedGameFailed', handleJoinLoadedGameFailed);
+socket.on('loadedGameReady', handleLoadedGameReady);
+socket.on('playerClaimedColor', handlePlayerClaimedColor);
+socket.on('loadedGameInfo', handleLoadedGameInfo);
+socket.on('loadedGameColorSelect', handleLoadedGameColorSelect);
 
 
 export function emitJoinRoom(roomId) {
@@ -214,6 +224,7 @@ function handleRandomDistributionComplete(data) {
   console.log('Random distribution complete:', data);
   showSuccess(data.message);
   disableDistributionButton();
+  showSaveButton();
 }
 
 function handleGameRestarted(data) {
@@ -224,6 +235,7 @@ function handleGameRestarted(data) {
   enableTextureMenu();
   hideActionMenu();
   removeTitleCard();
+  hideSaveButton();
 }
 
 function handleRestartResult(result) {
@@ -372,6 +384,7 @@ function handleRejoinSuccess(data) {
   if (data.gamePhase === 'battle') {
     setPhase('battle');
     disableTextureMenu();
+    if (data.isLeader) showSaveButton();
     setTimeout(() => {
       initBattlePhase();
       createTitleCard();
@@ -379,6 +392,7 @@ function handleRejoinSuccess(data) {
   } else if (data.gamePhase === 'initialPlacement') {
     setPhase('initialPlacement');
     disableTextureMenu();
+    if (data.isLeader) showSaveButton();
     if (data.placementState) {
       setPlacementStep(data.placementState.step);
       setCitiesRemaining(data.placementState.citiesRemaining);
@@ -399,5 +413,174 @@ function handleRejoinFailed(data) {
   // Clear invalid session
   clearSession();
   // User stays on menu screen
+}
+
+// ========== SAVE/LOAD GAME HANDLERS ==========
+
+// Callbacks for save/load UI
+let onSavesListCallback = null;
+let onGameLoadedCallback = null;
+let onJoinedLoadedGameCallback = null;
+let onLoadedGameInfoCallback = null;
+
+export function setOnSavesListCallback(callback) {
+  onSavesListCallback = callback;
+}
+
+export function setOnGameLoadedCallback(callback) {
+  onGameLoadedCallback = callback;
+}
+
+export function setOnJoinedLoadedGameCallback(callback) {
+  onJoinedLoadedGameCallback = callback;
+}
+
+export function setOnLoadedGameInfoCallback(callback) {
+  onLoadedGameInfoCallback = callback;
+}
+
+function handleSaveGameResult(result) {
+  if (result.success) {
+    showSuccess(`Game saved! (${result.filename})`);
+  } else {
+    showError(result.message || 'Failed to save game');
+  }
+}
+
+function handleSavesList(saves) {
+  console.log('Saves list received:', saves);
+  if (onSavesListCallback) {
+    onSavesListCallback(saves);
+  }
+}
+
+function handleGameLoaded(result) {
+  console.log('Game loaded:', result);
+  if (onGameLoadedCallback) {
+    onGameLoadedCallback(result);
+  }
+}
+
+function handleLoadGameFailed(data) {
+  showError(data.message || 'Failed to load game');
+}
+
+function handleJoinedLoadedGame(result) {
+  console.log('Joined loaded game:', result);
+
+  if (result.success) {
+    player = result.player;
+    setLocalPlayer(result.player.id);
+    showPlayerColor(result.player.color);
+    setLeader(result.isLeader);
+
+    if (onJoinedLoadedGameCallback) {
+      onJoinedLoadedGameCallback(result);
+    }
+  }
+}
+
+function handleJoinLoadedGameFailed(data) {
+  showError(data.message || 'Failed to join loaded game');
+}
+
+function handleLoadedGameReady(data) {
+  console.log('Loaded game ready:', data);
+
+  // Hide menu and show game
+  hideMenu();
+
+  // Create the board
+  createBoard(data.boardState);
+
+  // Draw all players
+  createPlayersElement(data.players);
+
+  // Update turn indicator
+  if (data.currentTurn) {
+    updateTurnIndicator(data.currentTurn);
+  }
+
+  // Save session for reconnection
+  const roomId = sessionStorage.getItem('barony_loadedRoomId');
+  if (roomId && player) {
+    saveSession(roomId, player.color);
+    sessionStorage.removeItem('barony_loadedRoomId');
+  }
+
+  // Show room info
+  if (roomId) {
+    showRoomInfo(roomId);
+  }
+
+  // Show save button for leader
+  showSaveButton();
+
+  // Handle phase-specific UI
+  if (data.gamePhase === 'battle') {
+    setPhase('battle');
+    disableTextureMenu();
+    setTimeout(() => {
+      initBattlePhase();
+      createTitleCard();
+    }, 500);
+  } else if (data.gamePhase === 'initialPlacement') {
+    setPhase('initialPlacement');
+    disableTextureMenu();
+    setTimeout(() => addPieceClickHandler(), 100);
+  }
+
+  showSuccess('Game loaded successfully!');
+}
+
+function handlePlayerClaimedColor(data) {
+  console.log('Player claimed color:', data);
+  // Update UI if needed
+  if (onLoadedGameInfoCallback) {
+    onLoadedGameInfoCallback({ remainingColors: data.remainingColors });
+  }
+}
+
+function handleLoadedGameInfo(info) {
+  console.log('Loaded game info:', info);
+  if (onLoadedGameInfoCallback) {
+    onLoadedGameInfoCallback(info);
+  }
+}
+
+// Callback for color select when joining loaded game
+let onLoadedGameColorSelectCallback = null;
+
+export function setOnLoadedGameColorSelectCallback(callback) {
+  onLoadedGameColorSelectCallback = callback;
+}
+
+function handleLoadedGameColorSelect(data) {
+  console.log('Loaded game color select:', data);
+  if (onLoadedGameColorSelectCallback) {
+    onLoadedGameColorSelectCallback(data);
+  }
+}
+
+// Export functions for save/load
+export function emitSaveGame() {
+  socket.emit('saveGame');
+}
+
+export function emitListSaves() {
+  socket.emit('listSaves');
+}
+
+export function emitLoadGame(filename) {
+  socket.emit('loadGame', filename);
+}
+
+export function emitJoinLoadedGame(roomId, color) {
+  sessionStorage.setItem('barony_loadedRoomId', roomId);
+  socket.emit('joinLoadedGame', { roomId, color });
+}
+
+export function emitGetLoadedGameInfo(roomId) {
+  socket.emit('getLoadedGameInfo', roomId);
 }
 
