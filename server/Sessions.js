@@ -11,6 +11,7 @@ import {
 } from './constants.js';
 import * as BoardLogic from './BoardLogic.js';
 import * as BattleActions from './BattleActions.js';
+import * as BoardSetup from './BoardSetup.js';
 
 export class Sessions {
     constructor() {
@@ -74,7 +75,7 @@ export class Sessions {
             return { success: false, message: 'Room not found!' };
         }
 
-        // Apenas o líder pode fazer isso
+        // Only leader can do this
         if (session.leaderId !== socket.id) {
             return { success: false, message: 'Only the room leader can do this!' };
         }
@@ -94,64 +95,8 @@ export class Sessions {
         session.gameStarted = true;
         session.gamePhase = GAME_PHASES.PLACEMENT;
 
-        // Calcula total de texturas de todos os jogadores
-        let allTextures = [];
-        players.forEach(player => {
-            Object.entries(player.hexCount).forEach(([textureType, count]) => {
-                for (let i = 0; i < count; i++) {
-                    allTextures.push(`${textureType}.png`);
-                }
-            });
-        });
-
-        // Shuffle textures
-        this.shuffleArray(allTextures);
-
-        // Find valid positions to place (starting from center)
-        const centerRow = Math.floor(session.boardState.length / 2);
-        const centerCol = Math.floor(session.boardState[0].length / 2);
-
-        // Coloca a primeira textura no centro
-        if (allTextures.length > 0) {
-            session.boardState[centerRow][centerCol].texture = allTextures.shift();
-        }
-
-        // Usa BFS para expandir a partir do centro
-        const placed = new Set([`${centerRow},${centerCol}`]);
-        const queue = [[centerRow, centerCol]];
-
-        while (allTextures.length > 0 && queue.length > 0) {
-            const [row, col] = queue.shift();
-            const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
-
-            // Shuffle directions for more randomness
-            this.shuffleArray(directions);
-
-            for (const [dRow, dCol] of directions) {
-                if (allTextures.length === 0) break;
-
-                const newRow = row + dRow;
-                const newCol = col + dCol;
-                const key = `${newRow},${newCol}`;
-
-                // Check if within bounds and not used
-                if (newRow >= 0 && newRow < session.boardState.length &&
-                    newCol >= 0 && newCol < session.boardState[0].length &&
-                    !placed.has(key)) {
-
-                    session.boardState[newRow][newCol].texture = allTextures.shift();
-                    placed.add(key);
-                    queue.push([newRow, newCol]);
-                }
-            }
-        }
-
-        // Zera as texturas de todos os jogadores
-        players.forEach(player => {
-            Object.keys(player.hexCount).forEach(key => {
-                player.hexCount[key] = 0;
-            });
-        });
+        // Use BoardSetup module to distribute textures
+        BoardSetup.setupBoard(session.boardState, players);
 
         // Notify all players
         io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
@@ -178,7 +123,7 @@ export class Sessions {
             return { success: false, message: 'Room not found!' };
         }
 
-        // Apenas o líder pode fazer isso
+        // Only leader can do this
         if (session.leaderId !== socket.id) {
             return { success: false, message: 'Only the leader can do this!' };
         }
@@ -190,113 +135,21 @@ export class Sessions {
 
         // First do texture distribution if not done yet
         if (session.gamePhase === GAME_PHASES.WAITING) {
-            // Force distribution with fewer players for testing
             session.lockedForEntry = true;
             session.gameStarted = true;
 
-            // Calculate total textures from all players
-            let allTextures = [];
-            players.forEach(player => {
-                Object.entries(player.hexCount).forEach(([textureType, count]) => {
-                    for (let i = 0; i < count; i++) {
-                        allTextures.push(`${textureType}.png`);
-                    }
-                });
-            });
-
-            // Shuffle textures
-            this.shuffleArray(allTextures);
-
-            // Find valid positions (starting from center)
-            const centerRow = Math.floor(session.boardState.length / 2);
-            const centerCol = Math.floor(session.boardState[0].length / 2);
-
-            // Place first texture in center
-            if (allTextures.length > 0) {
-                session.boardState[centerRow][centerCol].texture = allTextures.shift();
-            }
-
-            // Use BFS to expand from center
-            const placed = new Set([`${centerRow},${centerCol}`]);
-            const queue = [[centerRow, centerCol]];
-
-            while (allTextures.length > 0 && queue.length > 0) {
-                const [row, col] = queue.shift();
-                const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
-                this.shuffleArray(directions);
-
-                for (const [dRow, dCol] of directions) {
-                    if (allTextures.length === 0) break;
-
-                    const newRow = row + dRow;
-                    const newCol = col + dCol;
-                    const key = `${newRow},${newCol}`;
-
-                    if (newRow >= 0 && newRow < session.boardState.length &&
-                        newCol >= 0 && newCol < session.boardState[0].length &&
-                        !placed.has(key)) {
-                        session.boardState[newRow][newCol].texture = allTextures.shift();
-                        placed.add(key);
-                        queue.push([newRow, newCol]);
-                    }
-                }
-            }
-
-            // Reset all players' textures
-            players.forEach(player => {
-                Object.keys(player.hexCount).forEach(key => {
-                    player.hexCount[key] = 0;
-                });
-            });
-        }
-
-        // Find valid hexes for cities (plain/field without pieces)
-        const validCityHexes = [];
-        for (let row = 0; row < session.boardState.length; row++) {
-            for (let col = 0; col < session.boardState[row].length; col++) {
-                const hex = session.boardState[row][col];
-                if (CITY_VALID_TERRAINS.includes(hex.texture) && (!hex.pieces || hex.pieces.length === 0)) {
-                    validCityHexes.push({ row, col });
-                }
-            }
-        }
-
-        this.shuffleArray(validCityHexes);
-
-        // Place 3 cities + 3 knights for each player
-        const citiesPerPlayer = 3;
-        let hexIndex = 0;
-
-        for (const player of players) {
-            for (let i = 0; i < citiesPerPlayer && hexIndex < validCityHexes.length; i++) {
-                const { row, col } = validCityHexes[hexIndex++];
-                const hex = session.boardState[row][col];
-
-                if (!hex.pieces) hex.pieces = [];
-
-                // Place city
-                hex.pieces.push({
-                    type: 'city',
-                    owner: player.id,
-                    color: player.color
-                });
-                player.pieces.city--;
-
-                // Place knight alongside
-                hex.pieces.push({
-                    type: 'knight',
-                    owner: player.id,
-                    color: player.color
-                });
-                player.pieces.knight--;
-            }
+            // Use BoardSetup module for quick setup
+            BoardSetup.quickSetupForTesting(session.boardState, players);
+        } else {
+            // Just place pieces if textures already distributed
+            BoardSetup.placeInitialPieces(session.boardState, players, 3);
         }
 
         // Start battle phase
         session.gamePhase = GAME_PHASES.BATTLE;
         session.playerOnTurn = players[0];
 
-        // Notifica todos
+        // Notify all players
         io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
         io.to(roomId).emit('drawPlayers', players);
         io.to(roomId).emit('phaseChanged', { phase: 'battle' });
