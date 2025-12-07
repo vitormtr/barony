@@ -9,6 +9,21 @@ const PIECE_ICONS = {
   stronghold: '🏯'
 };
 
+const TITLE_ICONS = {
+  baron: '🏰',
+  viscount: '🏛️',
+  count: '⚔️',
+  marquis: '👑',
+  duke: '🎖️'
+};
+
+const RESOURCE_VALUES = {
+  mountain: 2,
+  forest: 3,
+  plain: 4,
+  field: 5
+};
+
 let isHudMinimized = false;
 
 export function createPlayersElement(players) {
@@ -80,8 +95,62 @@ function createProfileImage(player) {
 
 function createPlayerInfo(player) {
   const infoContainer = createElementWithClass("div", CONFIG.PLAYER_CLASSES.info);
+  infoContainer.appendChild(createPlayerHeader(player));
   infoContainer.appendChild(createPiecesElements(player.pieces, player.color));
   return infoContainer;
+}
+
+function createPlayerHeader(player) {
+  const header = createElementWithClass("div", "player-header");
+
+  // Title badge
+  const titleBadge = createElementWithClass("span", "player-title-badge");
+  const title = player.title || 'baron';
+  const titleName = getTitleDisplayName(title);
+  const titleIcon = TITLE_ICONS[title] || '🏰';
+  titleBadge.innerHTML = `${titleIcon} ${titleName}`;
+  titleBadge.classList.add(`title-${title}`);
+  header.appendChild(titleBadge);
+
+  // Resource points
+  const resourcePoints = calculateResourcePoints(player.resources);
+  const pointsBadge = createElementWithClass("span", "player-points-badge");
+  pointsBadge.textContent = `${resourcePoints} pts`;
+  if (resourcePoints >= 15) {
+    pointsBadge.classList.add("can-promote");
+    pointsBadge.title = "Can promote title!";
+  }
+  header.appendChild(pointsBadge);
+
+  // Victory points
+  if (player.victoryPoints > 0) {
+    const vpBadge = createElementWithClass("span", "player-vp-badge");
+    vpBadge.textContent = `${player.victoryPoints} VP`;
+    vpBadge.title = "Victory Points";
+    header.appendChild(vpBadge);
+  }
+
+  return header;
+}
+
+function calculateResourcePoints(resources) {
+  if (!resources) return 0;
+  let total = 0;
+  for (const [resource, count] of Object.entries(resources)) {
+    total += (count || 0) * (RESOURCE_VALUES[resource] || 0);
+  }
+  return total;
+}
+
+function getTitleDisplayName(title) {
+  const titles = {
+    'baron': 'Baron',
+    'viscount': 'Viscount',
+    'count': 'Count',
+    'marquis': 'Marquis',
+    'duke': 'Duke'
+  };
+  return titles[title?.toLowerCase()] || 'Baron';
 }
 
 function createPlayerName(color, titleName) {
