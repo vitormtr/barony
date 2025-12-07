@@ -12,6 +12,7 @@ import {
 import * as BoardLogic from './BoardLogic.js';
 import * as BattleActions from './BattleActions.js';
 import * as BoardSetup from './BoardSetup.js';
+import * as InitialPlacement from './InitialPlacement.js';
 
 export class Sessions {
     constructor() {
@@ -165,48 +166,23 @@ export class Sessions {
         return { success: true, message: 'Pieces placed randomly!' };
     }
 
-    // Start initial placement phase
-    // Barony rules: special order - players 1,2,3 place 1 city, player 4 places 3, then back 3,2,1 placing 2 more each
-    // Knight is placed automatically with the city
+    // Start initial placement phase using InitialPlacement module
     startInitialPlacement(roomId, io) {
         const session = this.session[roomId];
         if (!session) return;
 
         session.gamePhase = GAME_PHASES.INITIAL_PLACEMENT;
 
-        // Define player order (4 players)
+        // Use InitialPlacement module to create state
         const players = Object.values(session.players);
         const playerIds = players.map(p => p.id);
+        session.initialPlacementState = InitialPlacement.createInitialState(playerIds);
 
-        // Placement order:
-        // Phase 1: player 0 (1x), player 1 (1x), player 2 (1x), player 3 (3x)
-        // Phase 2: player 2 (2x), player 1 (2x), player 0 (2x)
-        // Total per player: 3 cities each
-        const placementSequence = [
-            { playerId: playerIds[0], citiesToPlace: 1 },  // Player 1: 1 city
-            { playerId: playerIds[1], citiesToPlace: 1 },  // Player 2: 1 city
-            { playerId: playerIds[2], citiesToPlace: 1 },  // Player 3: 1 city
-            { playerId: playerIds[3], citiesToPlace: 3 },  // Player 4: 3 cities
-            { playerId: playerIds[2], citiesToPlace: 2 },  // Player 3: +2 cities
-            { playerId: playerIds[1], citiesToPlace: 2 },  // Player 2: +2 cities
-            { playerId: playerIds[0], citiesToPlace: 2 },  // Player 1: +2 cities
-        ];
-
-        session.initialPlacementState = {
-            placementSequence,
-            currentSequenceIndex: 0,
-            citiesPlacedInTurn: 0,      // Cities placed in current turn
-        };
-
-        // Define o primeiro jogador
-        const firstTurn = placementSequence[0];
+        // Set first player
+        const firstTurn = InitialPlacement.getCurrentTurn(session.initialPlacementState);
         session.playerOnTurn = session.players[firstTurn.playerId];
 
-        io.to(roomId).emit('phaseChanged', {
-            phase: 'initialPlacement'
-        });
-
-        // Include turn data in start event to process after transition
+        io.to(roomId).emit('phaseChanged', { phase: 'initialPlacement' });
         io.to(roomId).emit('initialPlacementStarted', {
             message: 'Initial placement phase! Place your city.',
             currentStep: 'city',
@@ -218,7 +194,7 @@ export class Sessions {
         console.log(`Initial placement phase started in room ${roomId}`);
     }
 
-    // Place a city on the board (knight is added automatically)
+    // Place a city on the board using InitialPlacement module
     placePiece(socket, io, payload) {
         const roomId = this.getRoomIdBySocketId(socket.id);
         const session = this.session[roomId];
@@ -234,65 +210,18 @@ export class Sessions {
         const { row, col } = payload;
         const player = session.players[socket.id];
         const state = session.initialPlacementState;
-        const currentTurn = state.placementSequence[state.currentSequenceIndex];
+        const currentTurn = InitialPlacement.getCurrentTurn(state);
 
-        // Validação: é o turno do jogador?
+        // Validate turn
         if (currentTurn.playerId !== socket.id) {
             return { success: false, error: 'NOT_YOUR_TURN', message: 'Not your turn!' };
         }
 
-        // Validation: does player have a city available?
-        if (player.pieces.city <= 0) {
-            return { success: false, error: 'NO_PIECES', message: 'No more cities available!' };
+        // Use InitialPlacement module for validation and placement
+        const placeResult = InitialPlacement.placeCity(session.boardState, player, row, col);
+        if (!placeResult.success) {
+            return { success: false, error: placeResult.error, message: placeResult.message };
         }
-
-        // Validation: does player have a knight available?
-        if (player.pieces.knight <= 0) {
-            return { success: false, error: 'NO_PIECES', message: 'No more knights available!' };
-        }
-
-        // Validation: hex exists and has texture
-        const hex = session.boardState[row]?.[col];
-        if (!hex || !hex.texture) {
-            return { success: false, error: 'INVALID_HEX', message: 'Invalid hex!' };
-        }
-
-        // Validation: hex is not occupied
-        if (hex.pieces && hex.pieces.length > 0) {
-            return { success: false, error: 'HEX_OCCUPIED', message: 'This hex is already occupied!' };
-        }
-
-        // Validation: valid terrain for city (only plain and field)
-        if (!CITY_VALID_TERRAINS.includes(hex.texture)) {
-            return { success: false, error: 'INVALID_TERRAIN', message: 'Cities can only be placed on plains or fields!' };
-        }
-
-        // Validation: city cannot be adjacent to another city
-        if (this.isAdjacentToCity(session.boardState, row, col)) {
-            return { success: false, error: 'ADJACENT_TO_CITY', message: 'Cities cannot be placed adjacent to other cities!' };
-        }
-
-        // Initialize pieces array
-        hex.pieces = [];
-
-        // Place the city
-        hex.pieces.push({
-            type: 'city',
-            owner: socket.id,
-            color: player.color
-        });
-        player.pieces.city--;
-
-        // Place knight automatically on the same hex
-        hex.pieces.push({
-            type: 'knight',
-            owner: socket.id,
-            color: player.color
-        });
-        player.pieces.knight--;
-
-        // Update city count placed this turn
-        state.citiesPlacedInTurn++;
 
         io.to(roomId).emit('piecePlaced', {
             row, col, pieceType: 'city', playerId: socket.id, playerColor: player.color
@@ -300,52 +229,33 @@ export class Sessions {
         io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
         io.to(roomId).emit('drawPlayers', Object.values(session.players));
 
-        // Check if player finished their turn
-        if (state.citiesPlacedInTurn >= currentTurn.citiesToPlace) {
-            // Move to next in sequence
-            return this.advanceInitialPlacement(roomId, io);
-        } else {
-            // Still need to place more cities this turn
-            const remaining = currentTurn.citiesToPlace - state.citiesPlacedInTurn;
-            io.to(roomId).emit('initialPlacementUpdate', {
-                message: `City placed! Place ${remaining} more city(ies).`,
-                currentStep: 'city',
-                citiesRemaining: remaining
-            });
-            return { success: true, citiesRemaining: remaining };
-        }
-    }
+        // Advance placement state
+        const advanceResult = InitialPlacement.advancePlacement(state);
 
-    // Advance to next player in initial placement
-    advanceInitialPlacement(roomId, io) {
-        const session = this.session[roomId];
-        const state = session.initialPlacementState;
-
-        state.currentSequenceIndex++;
-        state.citiesPlacedInTurn = 0;
-
-        // Check if sequence ended
-        if (state.currentSequenceIndex >= state.placementSequence.length) {
-            // Finished initial placement phase
+        if (advanceResult.complete) {
             return this.endInitialPlacement(roomId, io);
         }
 
-        // Next in sequence
-        const nextTurn = state.placementSequence[state.currentSequenceIndex];
-        session.playerOnTurn = session.players[nextTurn.playerId];
+        if (advanceResult.turnChanged) {
+            session.playerOnTurn = session.players[advanceResult.nextPlayerId];
+            io.to(roomId).emit('turnChanged', {
+                currentPlayerId: session.playerOnTurn.id,
+                currentPlayerColor: session.playerOnTurn.color
+            });
+            io.to(roomId).emit('initialPlacementUpdate', {
+                message: `Your turn! Place ${advanceResult.citiesRemaining} city(ies).`,
+                currentStep: 'city',
+                citiesRemaining: advanceResult.citiesRemaining
+            });
+        } else {
+            io.to(roomId).emit('initialPlacementUpdate', {
+                message: `City placed! Place ${advanceResult.citiesRemaining} more city(ies).`,
+                currentStep: 'city',
+                citiesRemaining: advanceResult.citiesRemaining
+            });
+        }
 
-        io.to(roomId).emit('turnChanged', {
-            currentPlayerId: session.playerOnTurn.id,
-            currentPlayerColor: session.playerOnTurn.color
-        });
-
-        io.to(roomId).emit('initialPlacementUpdate', {
-            message: `Your turn! Place ${nextTurn.citiesToPlace} city(ies).`,
-            currentStep: 'city',
-            citiesRemaining: nextTurn.citiesToPlace
-        });
-
-        return { success: true, citiesRemaining: nextTurn.citiesToPlace };
+        return { success: true, citiesRemaining: advanceResult.citiesRemaining };
     }
 
     // Finalize initial placement phase and start battle
