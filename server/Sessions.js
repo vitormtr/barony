@@ -1,26 +1,14 @@
 import { nanoid } from 'nanoid';
 import { createEmptyBoard } from './utils.js';
 import { Player } from './Player.js';
-
-const DIRECTION_MAP = {
-    EVEN: [[-1, -1], [-1, 0], [0, 1], [1, 0], [1, -1], [0, -1]],
-    ODD: [[-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [0, -1]]
-};
-
-const GAME_PHASES = {
-    WAITING: 'waiting',
-    PLACEMENT: 'placement',
-    INITIAL_PLACEMENT: 'initialPlacement',  // Phase 2: city and knight placement
-    BATTLE: 'battle',
-    ENDED: 'ended'
-};
-
-// Terrains where cities can be placed (only plain and field - NOT forest, mountain or water)
-const CITY_VALID_TERRAINS = ['plain.png', 'farm.png'];
-// Terrains where knights can be placed (any except water)
-const KNIGHT_VALID_TERRAINS = ['farm.png', 'plain.png', 'forest.png', 'mountain.png'];
-
-const TEXTURES = ['water.png', 'farm.png', 'mountain.png', 'plain.png', 'forest.png'];
+import {
+    DIRECTION_MAP,
+    GAME_PHASES,
+    TEXTURES,
+    CITY_VALID_TERRAINS,
+    KNIGHT_VALID_TERRAINS,
+    PLAYER_COLORS
+} from './constants.js';
 
 export class Sessions {
     constructor() {
@@ -1458,15 +1446,15 @@ export class Sessions {
         const session = this.session[roomId];
 
         if (!session) {
-            return ['red', 'blue', 'green', 'yellow'][Math.floor(Math.random() * 4)];
+            return PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)];
         }
 
         const usedColors = Object.values(session.players).map(player => player.color);
-        const availableColors = ['red', 'blue', 'green', 'yellow'].filter(color => !usedColors.includes(color));
+        const availableColors = PLAYER_COLORS.filter(color => !usedColors.includes(color));
 
-        return availableColors.length > 0 
+        return availableColors.length > 0
             ? availableColors[Math.floor(Math.random() * availableColors.length)]
-            : null; 
+            : null;
     }
 
     getPlayersInRoom(roomId) {

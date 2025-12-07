@@ -1,12 +1,11 @@
-// Títulos de nobreza em ordem
-const NOBLE_TITLES = ['baron', 'viscount', 'count', 'marquis', 'duke'];
-const TITLE_NAMES = {
-    baron: 'Baron',
-    viscount: 'Viscount',
-    count: 'Count',
-    marquis: 'Marquis',
-    duke: 'Duke'
-};
+import {
+    NOBLE_TITLES,
+    TITLE_NAMES,
+    INITIAL_PIECES,
+    INITIAL_HEX_COUNT,
+    INITIAL_RESOURCES,
+    TERRAIN_TO_RESOURCE
+} from './constants.js';
 
 export class Player {
     constructor(id, color, hexCount = null, pieces = null, resources = null, title = null, victoryPoints = null) {
@@ -31,42 +30,19 @@ export class Player {
     }
 
     initializePlayerPieces() {
-        return {
-            city: 5,
-            stronghold: 2,
-            knight: 7,
-            village: 14
-        };
+        return { ...INITIAL_PIECES };
     }
 
     initializePlayerHexCount() {
-        return {
-            water: 4,
-            farm: 6,
-            mountain: 5,
-            plain: 6,
-            forest: 6
-        };
+        return { ...INITIAL_HEX_COUNT };
     }
 
     initializeResources() {
-        return {
-            field: 0,      // Campo (farm)
-            forest: 0,     // Floresta
-            mountain: 0,   // Montanha
-            plain: 0       // Planície
-        };
+        return { ...INITIAL_RESOURCES };
     }
 
-    // Adiciona recurso baseado no tipo de terreno
     addResource(terrainType) {
-        const resourceMap = {
-            'farm.png': 'field',
-            'forest.png': 'forest',
-            'mountain.png': 'mountain',
-            'plain.png': 'plain'
-        };
-        const resource = resourceMap[terrainType];
+        const resource = TERRAIN_TO_RESOURCE[terrainType];
         if (resource && this.resources[resource] !== undefined) {
             this.resources[resource]++;
             return resource;
@@ -126,4 +102,5 @@ export class Player {
     }
 }
 
-export { NOBLE_TITLES, TITLE_NAMES };
+// Re-export for backward compatibility
+export { NOBLE_TITLES, TITLE_NAMES } from './constants.js';
