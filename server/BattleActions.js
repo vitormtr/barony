@@ -1,12 +1,13 @@
 // Battle phase actions for Barony game
-import { DIRECTION_MAP, NOBLE_TITLE_COST } from './constants.js';
+import { DIRECTION_MAP, NOBLE_TITLE_COST, RESOURCE_VALUES } from './constants.js';
 import * as BoardLogic from './BoardLogic.js';
 
 /**
- * RECRUITMENT: Add 2 knights to a city (3 if adjacent to lake)
+ * RECRUITMENT: Add knights to a city (max 2, or 3 if adjacent to lake)
+ * Player can choose how many to recruit (1 to max)
  */
 export function executeRecruitment(boardState, player, payload, players) {
-    const { row, col } = payload;
+    const { row, col, knightCount } = payload;
     const hex = boardState[row]?.[col];
 
     if (!hex) {
@@ -19,7 +20,17 @@ export function executeRecruitment(boardState, player, payload, players) {
     }
 
     const adjacentToWater = BoardLogic.isAdjacentToWater(boardState, row, col);
-    const knightsToAdd = adjacentToWater ? 3 : 2;
+    const maxKnights = adjacentToWater ? 3 : 2;
+
+    // If knightCount not specified, use max (backward compatibility)
+    // Use explicit undefined/null check to allow 0 to fail validation
+    const knightsToAdd = (knightCount !== undefined && knightCount !== null)
+        ? Math.min(knightCount, maxKnights)
+        : maxKnights;
+
+    if (knightsToAdd < 1) {
+        return { success: false, message: 'You must recruit at least 1 knight!' };
+    }
 
     if (player.pieces.knight < knightsToAdd) {
         return { success: false, message: `You don't have ${knightsToAdd} knights available!` };
@@ -36,7 +47,7 @@ export function executeRecruitment(boardState, player, payload, players) {
 
     return {
         success: true,
-        message: `${knightsToAdd} knights recruited!${adjacentToWater ? ' (Lake bonus!)' : ''}`
+        message: `${knightsToAdd} knight${knightsToAdd > 1 ? 's' : ''} recruited!${adjacentToWater && knightsToAdd === 3 ? ' (Lake bonus!)' : ''}`
     };
 }
 
@@ -104,6 +115,29 @@ export function executeMovement(boardState, player, payload, players) {
 }
 
 /**
+ * Steal the most valuable resource from defender and give to attacker
+ * Returns the resource type stolen, or null if defender has no resources
+ */
+function stealMostValuableResource(defender, attacker) {
+    // Sort resources by value (highest first)
+    const sortedResources = Object.keys(RESOURCE_VALUES).sort(
+        (a, b) => RESOURCE_VALUES[b] - RESOURCE_VALUES[a]
+    );
+
+    // Find the most valuable resource the defender has
+    for (const resource of sortedResources) {
+        if (defender.resources[resource] > 0) {
+            defender.resources[resource]--;
+            attacker.resources[resource]++;
+            return resource;
+        }
+    }
+
+    // Defender has no resources
+    return null;
+}
+
+/**
  * Process combat in hex after movement
  */
 export function processCombat(boardState, player, hex, row, col, players) {
@@ -124,7 +158,8 @@ export function processCombat(boardState, player, hex, row, col, players) {
     let resourceGained = null;
 
     // Combat against villages: 2 knights destroy 1 village
-    if (playerKnightCount >= 2 && enemyVillages.length > 0) {
+    // Defender loses their most valuable resource to attacker
+    if (playerKnightCount >= 2 && enemyVillages.length > 0 && enemyKnights.length === 0) {
         const village = enemyVillages[0];
         const villageIndex = hex.pieces.findIndex(p => p === village);
         if (villageIndex !== -1) {
@@ -134,9 +169,13 @@ export function processCombat(boardState, player, hex, row, col, players) {
             const villageOwner = Object.values(players).find(p => p.color === village.color);
             if (villageOwner) {
                 villageOwner.pieces.village++;
-            }
 
-            resourceGained = player.addResource(hex.texture);
+                // Transfer most valuable resource from defender to attacker
+                const stolenResource = stealMostValuableResource(villageOwner, player);
+                if (stolenResource) {
+                    resourceGained = stolenResource;
+                }
+            }
         }
     }
 
@@ -158,7 +197,7 @@ export function processCombat(boardState, player, hex, row, col, players) {
     if (destroyed.length > 0) {
         let message = `Combat! Destroyed: ${destroyed.join(', ')}`;
         if (resourceGained) {
-            message += ` (+1 ${BoardLogic.getResourceName(resourceGained)})`;
+            message += ` (Stole 1 ${BoardLogic.getResourceName(resourceGained)}!)`;
         }
         return { occurred: true, message, destroyed, resourceGained };
     }

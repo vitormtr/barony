@@ -273,6 +273,8 @@ export function handleSocketEvents(socket, io, sessionManager) {
         // If all players joined, notify everyone and start game
         if (result.allJoined) {
           const session = sessionManager.session[roomId];
+          console.log('Loaded game ready - playerOnTurn:', session.playerOnTurn);
+          console.log('Players:', Object.keys(session.players));
           io.to(roomId).emit('loadedGameReady', {
             boardState: session.boardState,
             players: Object.values(session.players),

@@ -26,6 +26,11 @@ import { createTitleCard, updateTitleCard, removeTitleCard } from './titleCard.j
 export const socket = io();
 export let player = null;
 
+// Getter function to always get the current player reference
+export function getPlayer() {
+  return player;
+}
+
 // Session storage keys
 const SESSION_KEYS = {
   ROOM_ID: 'barony_roomId',
@@ -136,7 +141,46 @@ function handleBoardCreation(boardState) {
 
 function handlePlayersDraw(players) {
   console.log('Updating players interface');
-  createPlayersElement(Object.values(players));
+
+  // Handle both array and object formats
+  const playersArray = Array.isArray(players) ? players : Object.values(players);
+  createPlayersElement(playersArray);
+
+  // Update local player data if present in the list
+  if (player) {
+    const updatedPlayer = playersArray.find(p => p.id === player.id);
+    if (updatedPlayer) {
+      player.resources = updatedPlayer.resources;
+      player.pieces = updatedPlayer.pieces;
+      player.title = updatedPlayer.title;
+      player.victoryPoints = updatedPlayer.victoryPoints;
+      // Calculate resource points for title card
+      player.resourcePoints = calculateResourcePoints(updatedPlayer.resources);
+      player.titleName = getTitleName(updatedPlayer.title);
+      // Update title card
+      updateTitleCard();
+    }
+  }
+}
+
+function calculateResourcePoints(resources) {
+  const values = { mountain: 2, forest: 3, plain: 4, field: 5 };
+  let total = 0;
+  for (const [resource, count] of Object.entries(resources || {})) {
+    total += (count || 0) * (values[resource] || 0);
+  }
+  return total;
+}
+
+function getTitleName(title) {
+  const titles = {
+    'baron': 'Baron',
+    'viscount': 'Viscount',
+    'count': 'Count',
+    'marquis': 'Marquis',
+    'duke': 'Duke'
+  };
+  return titles[title?.toLowerCase()] || 'Baron';
 }
 
 function handlePlayerJoinedRoom(currentPlayer) {
@@ -388,6 +432,8 @@ function handleRejoinSuccess(data) {
     setTimeout(() => {
       initBattlePhase();
       createTitleCard();
+      // Trigger turn changed to setup action menu correctly
+      actionMenuTurnChanged();
     }, 500);
   } else if (data.gamePhase === 'initialPlacement') {
     setPhase('initialPlacement');
@@ -486,6 +532,9 @@ function handleJoinLoadedGameFailed(data) {
 
 function handleLoadedGameReady(data) {
   console.log('Loaded game ready:', data);
+  console.log('handleLoadedGameReady - currentTurn:', data.currentTurn);
+  console.log('handleLoadedGameReady - player:', player);
+  console.log('handleLoadedGameReady - player.id:', player?.id);
 
   // Hide menu and show game
   hideMenu();
@@ -493,12 +542,26 @@ function handleLoadedGameReady(data) {
   // Create the board
   createBoard(data.boardState);
 
+  // Update local player data from server
+  const playersArray = Array.isArray(data.players) ? data.players : Object.values(data.players);
+  if (player) {
+    const updatedPlayer = playersArray.find(p => p.id === player.id);
+    if (updatedPlayer) {
+      // Update properties in place to preserve the exported reference
+      Object.assign(player, updatedPlayer);
+      console.log('Updated player data:', player);
+    }
+  }
+
   // Draw all players
-  createPlayersElement(data.players);
+  createPlayersElement(playersArray);
 
   // Update turn indicator
   if (data.currentTurn) {
+    console.log('Calling updateTurnIndicator with:', data.currentTurn);
     updateTurnIndicator(data.currentTurn);
+  } else {
+    console.log('WARNING: currentTurn is null/undefined!');
   }
 
   // Save session for reconnection
@@ -523,6 +586,8 @@ function handleLoadedGameReady(data) {
     setTimeout(() => {
       initBattlePhase();
       createTitleCard();
+      // Trigger turn changed to setup action menu correctly
+      actionMenuTurnChanged();
     }, 500);
   } else if (data.gamePhase === 'initialPlacement') {
     setPhase('initialPlacement');

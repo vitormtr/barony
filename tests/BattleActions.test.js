@@ -129,6 +129,53 @@ describe('BattleActions', () => {
             expect(result.success).toBe(false);
             expect(result.message).toBe('Invalid hex!');
         });
+
+        it('should recruit specified number of knights', () => {
+            board[2][2].texture = 'plain.png';
+            board[2][2].pieces = [{ type: 'city', owner: 'p1', color: 'red' }];
+
+            const result = executeRecruitment(board, player, { row: 2, col: 2, knightCount: 1 }, players);
+
+            expect(result.success).toBe(true);
+            expect(result.message).toContain('1 knight recruited');
+            expect(board[2][2].pieces.filter(p => p.type === 'knight').length).toBe(1);
+            expect(player.pieces.knight).toBe(6);
+        });
+
+        it('should not exceed max knights when adjacent to water', () => {
+            board[2][2].texture = 'plain.png';
+            board[2][2].pieces = [{ type: 'city', owner: 'p1', color: 'red' }];
+            board[2][3].texture = 'water.png';
+
+            // Request 5 knights but max is 3 near water
+            const result = executeRecruitment(board, player, { row: 2, col: 2, knightCount: 5 }, players);
+
+            expect(result.success).toBe(true);
+            expect(board[2][2].pieces.filter(p => p.type === 'knight').length).toBe(3);
+            expect(player.pieces.knight).toBe(4);
+        });
+
+        it('should not exceed max knights when not adjacent to water', () => {
+            board[2][2].texture = 'plain.png';
+            board[2][2].pieces = [{ type: 'city', owner: 'p1', color: 'red' }];
+
+            // Request 5 knights but max is 2 without water
+            const result = executeRecruitment(board, player, { row: 2, col: 2, knightCount: 5 }, players);
+
+            expect(result.success).toBe(true);
+            expect(board[2][2].pieces.filter(p => p.type === 'knight').length).toBe(2);
+            expect(player.pieces.knight).toBe(5);
+        });
+
+        it('should fail if recruiting zero knights', () => {
+            board[2][2].texture = 'plain.png';
+            board[2][2].pieces = [{ type: 'city', owner: 'p1', color: 'red' }];
+
+            const result = executeRecruitment(board, player, { row: 2, col: 2, knightCount: 0 }, players);
+
+            expect(result.success).toBe(false);
+            expect(result.message).toContain('at least 1');
+        });
     });
 
     describe('executeMovement', () => {
@@ -277,8 +324,10 @@ describe('BattleActions', () => {
             expect(result.occurred).toBe(false);
         });
 
-        it('should destroy enemy village with 2 knights', () => {
+        it('should destroy enemy village with 2 knights and steal most valuable resource', () => {
             const enemy = createMockPlayer('p2', 'blue');
+            // Give enemy some resources - field is most valuable (5 points)
+            enemy.resources = { field: 2, forest: 1, mountain: 3, plain: 0 };
             players.p2 = enemy;
             board[2][2].texture = 'plain.png';
 
@@ -293,8 +342,56 @@ describe('BattleActions', () => {
 
             expect(result.occurred).toBe(true);
             expect(result.destroyed).toContain('village');
-            expect(result.resourceGained).toBe('plain');
+            expect(result.resourceGained).toBe('field'); // Most valuable stolen
             expect(enemy.pieces.village).toBe(15); // Returned to reserve
+            expect(enemy.resources.field).toBe(1); // Lost one field
+            expect(player.resources.field).toBe(1); // Gained one field
+        });
+
+        it('should not steal resource if defender has none', () => {
+            const enemy = createMockPlayer('p2', 'blue');
+            // Enemy has no resources
+            enemy.resources = { field: 0, forest: 0, mountain: 0, plain: 0 };
+            players.p2 = enemy;
+            board[2][2].texture = 'plain.png';
+
+            const hex = board[2][2];
+            hex.pieces = [
+                { type: 'knight', owner: 'p1', color: 'red' },
+                { type: 'knight', owner: 'p1', color: 'red' },
+                { type: 'village', owner: 'p2', color: 'blue' }
+            ];
+
+            const result = processCombat(board, player, hex, 2, 2, players);
+
+            expect(result.occurred).toBe(true);
+            expect(result.destroyed).toContain('village');
+            expect(result.resourceGained).toBeNull(); // No resource to steal
+            expect(enemy.pieces.village).toBe(15);
+        });
+
+        it('should not destroy village if enemy knight is present', () => {
+            const enemy = createMockPlayer('p2', 'blue');
+            enemy.resources = { field: 2, forest: 0, mountain: 0, plain: 0 };
+            players.p2 = enemy;
+            board[2][2].texture = 'plain.png';
+
+            const hex = board[2][2];
+            hex.pieces = [
+                { type: 'knight', owner: 'p1', color: 'red' },
+                { type: 'knight', owner: 'p1', color: 'red' },
+                { type: 'village', owner: 'p2', color: 'blue' },
+                { type: 'knight', owner: 'p2', color: 'blue' }  // Enemy knight protects village
+            ];
+
+            const result = processCombat(board, player, hex, 2, 2, players);
+
+            expect(result.occurred).toBe(true);
+            // Knight should be destroyed, not village
+            expect(result.destroyed).toContain('knight');
+            expect(result.destroyed).not.toContain('village');
+            // Village owner should not lose resources
+            expect(enemy.resources.field).toBe(2);
         });
 
         it('should destroy enemy knight with 2+ knights', () => {

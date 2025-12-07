@@ -449,3 +449,152 @@ describe('Battle Actions', () => {
     });
   });
 });
+
+describe('Save/Load Game', () => {
+  let sessions;
+  let mockIo;
+  let roomId;
+
+  beforeEach(() => {
+    sessions = new Sessions();
+    mockIo = createMockIo();
+
+    // Create room with 4 players
+    const socket1 = createMockSocket('socket1');
+    roomId = sessions.createSession(socket1, mockIo);
+
+    for (let i = 2; i <= 4; i++) {
+      const socket = createMockSocket(`socket${i}`);
+      sessions.addPlayerToSession(socket, mockIo, roomId);
+    }
+
+    // Set up game state
+    const session = sessions.session[roomId];
+    session.gamePhase = 'battle';
+    session.gameStarted = true;
+    session.playerOnTurn = session.players['socket1'];
+
+    // Add some terrain and pieces
+    session.boardState[7][7].texture = 'plain.png';
+    session.boardState[7][7].pieces = [
+      { type: 'city', owner: 'socket1', color: 'red' },
+      { type: 'knight', owner: 'socket1', color: 'red' }
+    ];
+  });
+
+  describe('joinLoadedGame', () => {
+    test('should set playerOnTurn when player with matching color joins', () => {
+      const session = sessions.session[roomId];
+      const originalColor = session.playerOnTurn.color;
+
+      // Simulate loaded game state - need to set up the player with the right color
+      session.loadedGame = true;
+      session.availableColors = [originalColor];
+      session.playerOnTurnColor = originalColor;
+      session.playerOnTurn = null;
+
+      // Remove other players and keep only one with the matching color
+      const playerWithColor = Object.values(session.players).find(p => p.color === originalColor);
+      const oldId = playerWithColor.id;
+      session.players = { [oldId]: playerWithColor };
+
+      // Join with the color that should be on turn
+      const newSocket = createMockSocket('newSocket1');
+      const result = sessions.joinLoadedGame(newSocket, mockIo, roomId, originalColor);
+
+      expect(result.success).toBe(true);
+      expect(result.allJoined).toBe(true);
+      expect(session.playerOnTurn).not.toBeNull();
+      expect(session.playerOnTurn.color).toBe(originalColor);
+    });
+
+    test('should set playerOnTurn to first player when playerOnTurnColor is null and all joined', () => {
+      const session = sessions.session[roomId];
+
+      // Simulate loaded game with null playerOnTurnColor (the bug scenario)
+      session.loadedGame = true;
+      session.playerOnTurnColor = null;   // This was the bug - null color
+      session.playerOnTurn = null;
+
+      // Keep only one player with 'red' color
+      const redPlayer = Object.values(session.players).find(p => p.color === 'red');
+      if (redPlayer) {
+        session.players = { [redPlayer.id]: redPlayer };
+        session.availableColors = ['red'];
+      } else {
+        // If no red player, use the first one
+        const firstPlayer = Object.values(session.players)[0];
+        session.players = { [firstPlayer.id]: firstPlayer };
+        session.availableColors = [firstPlayer.color];
+      }
+
+      const colorToJoin = session.availableColors[0];
+      const newSocket = createMockSocket('newSocket1');
+      const result = sessions.joinLoadedGame(newSocket, mockIo, roomId, colorToJoin);
+
+      expect(result.success).toBe(true);
+      expect(result.allJoined).toBe(true);
+      // Should have fallback to first player since playerOnTurnColor was null
+      expect(session.playerOnTurn).not.toBeNull();
+    });
+
+    test('should update piece owners when player joins loaded game', () => {
+      const session = sessions.session[roomId];
+
+      // Get the player with red color (the one who owns the pieces)
+      const redPlayer = Object.values(session.players).find(p => p.color === 'red');
+      const oldPlayerId = redPlayer ? redPlayer.id : 'socket1';
+      const newPlayerId = 'newSocket1';
+
+      // Update pieces to have correct owner
+      session.boardState[7][7].pieces = [
+        { type: 'city', owner: oldPlayerId, color: 'red' },
+        { type: 'knight', owner: oldPlayerId, color: 'red' }
+      ];
+
+      // Simulate loaded game with only one player
+      session.loadedGame = true;
+      session.availableColors = ['red'];
+      session.playerOnTurnColor = 'red';
+
+      // Keep only the red player
+      if (redPlayer) {
+        session.players = { [oldPlayerId]: redPlayer };
+      }
+
+      const newSocket = createMockSocket(newPlayerId);
+      sessions.joinLoadedGame(newSocket, mockIo, roomId, 'red');
+
+      // Check that piece owners were updated
+      const pieces = session.boardState[7][7].pieces;
+      expect(pieces.every(p => p.owner === newPlayerId)).toBe(true);
+    });
+
+    test('should have valid playerOnTurn after all players join', () => {
+      const session = sessions.session[roomId];
+
+      // Get the red player
+      const redPlayer = Object.values(session.players).find(p => p.color === 'red');
+      const oldId = redPlayer ? redPlayer.id : 'socket1';
+
+      // Simulate loaded game with only one slot
+      session.loadedGame = true;
+      session.availableColors = ['red'];
+      session.playerOnTurnColor = 'red';
+      session.playerOnTurn = null;
+
+      if (redPlayer) {
+        session.players = { [oldId]: redPlayer };
+      }
+
+      const newSocket = createMockSocket('newSocket1');
+      const result = sessions.joinLoadedGame(newSocket, mockIo, roomId, 'red');
+
+      expect(result.allJoined).toBe(true);
+      // playerOnTurn should be set so currentTurn won't be null
+      expect(session.playerOnTurn).toBeDefined();
+      expect(session.playerOnTurn).not.toBeNull();
+      expect(session.playerOnTurn.id).toBe('newSocket1');
+    });
+  });
+});

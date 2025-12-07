@@ -1415,6 +1415,68 @@ button:active {
   color: var(--color-text-muted);
 }
 
+.knight-select-btn .knight-direction {
+  font-weight: bold;
+}
+
+.knight-select-btn .knight-info {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  margin-left: 4px;
+}
+
+/* Recruitment menu styles */
+.recruitment-menu .recruitment-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.recruitment-menu .recruit-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 60px;
+  padding: 12px 16px;
+}
+
+.recruitment-menu .recruit-count {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.recruitment-menu .recruit-label {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.recruitment-menu .water-bonus {
+  display: block;
+  font-size: 0.75rem;
+  color: #4fc3f7;
+  margin-top: 4px;
+}
+
+/* Highlight for knight source hex */
+.hexagon.knight-source-highlight {
+  outline: 4px solid var(--color-primary) !important;
+  outline-offset: -2px;
+  animation: pulse-highlight 0.5s ease infinite alternate;
+  z-index: 100;
+}
+
+@keyframes pulse-highlight {
+  from {
+    outline-color: var(--color-primary);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+  }
+  to {
+    outline-color: #fff;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.8);
+  }
+}
+
 /* Menu contextual de hexágono */
 .hex-context-menu {
   position: fixed;
@@ -1484,6 +1546,32 @@ button:active {
 .end-action-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(245, 124, 0, 0.4);
+}
+
+.pass-turn-btn {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  padding: 14px 28px;
+  background: linear-gradient(145deg, #7b1fa2, #6a1b9a);
+  border: 2px solid #ba68c8;
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 1001;
+  animation: pulse 1.5s infinite;
+}
+
+.pass-turn-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(123, 31, 162, 0.4);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
 }
 
 /* Cores das peças por jogador */

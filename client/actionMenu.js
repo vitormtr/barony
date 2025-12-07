@@ -52,6 +52,26 @@ export function initBattlePhase() {
   addHexClickHandler();
 }
 
+// Check if hex is adjacent to water
+function isAdjacentToWater(row, col) {
+  const directions = row % 2 === 1
+    ? [[-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [0, -1]]
+    : [[-1, -1], [-1, 0], [0, 1], [1, 0], [1, -1], [0, -1]];
+
+  for (const [dRow, dCol] of directions) {
+    const adjRow = row + dRow;
+    const adjCol = col + dCol;
+    const neighbor = document.querySelector(`.hexagon[data-row="${adjRow}"][data-col="${adjCol}"]`);
+    if (neighbor) {
+      const neighborData = JSON.parse(neighbor.dataset.hex);
+      if (neighborData.texture === 'water.png') {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Find adjacent knights that can move to this hex
 function getAdjacentPlayerKnights(row, col) {
   const knights = [];
@@ -150,7 +170,12 @@ function getAvailableActions(hexData) {
 function showContextMenu(hex, hexData) {
   hideContextMenu();
 
+  console.log('showContextMenu - hexData:', hexData);
+  console.log('showContextMenu - player:', player);
+  console.log('showContextMenu - player.color:', player?.color);
+
   const availableActions = getAvailableActions(hexData);
+  console.log('showContextMenu - availableActions:', availableActions);
 
   if (availableActions.length === 0) {
     showWarning('No action available on this hex');
@@ -238,10 +263,81 @@ function executeAction(action, hex, hexData) {
 
 // ========== RECRUITMENT ==========
 function executeRecruitment(hexData) {
+  const adjacentToWater = isAdjacentToWater(hexData.row, hexData.col);
+  const maxKnights = adjacentToWater ? 3 : 2;
+  const availableKnights = player?.pieces?.knight || 0;
+  const canRecruit = Math.min(maxKnights, availableKnights);
+
+  if (canRecruit <= 0) {
+    showError('No knights available to recruit!');
+    return;
+  }
+
+  // If can only recruit 1, do it directly
+  if (canRecruit === 1) {
+    doRecruitment(hexData, 1);
+    return;
+  }
+
+  // Show selection menu
+  showRecruitmentMenu(hexData, canRecruit, adjacentToWater);
+}
+
+function showRecruitmentMenu(hexData, maxKnights, adjacentToWater) {
+  const menu = document.createElement('div');
+  menu.className = 'knight-selection-menu recruitment-menu';
+
+  let buttonsHtml = '';
+  for (let i = 1; i <= maxKnights; i++) {
+    buttonsHtml += `
+      <button class="knight-select-btn recruit-btn" data-count="${i}">
+        <span class="recruit-count">${i}</span>
+        <span class="recruit-label">knight${i > 1 ? 's' : ''}</span>
+      </button>
+    `;
+  }
+
+  menu.innerHTML = `
+    <div class="knight-selection-title">
+      How many knights to recruit?
+      ${adjacentToWater ? '<span class="water-bonus">(Lake bonus: +1)</span>' : ''}
+    </div>
+    <div class="recruitment-buttons">
+      ${buttonsHtml}
+    </div>
+    <button class="knight-select-btn cancel">Cancel</button>
+  `;
+
+  // Position menu near the hex
+  const hex = document.querySelector(`.hexagon[data-row="${hexData.row}"][data-col="${hexData.col}"]`);
+  if (hex) {
+    const rect = hex.getBoundingClientRect();
+    menu.style.left = `${rect.left + rect.width / 2}px`;
+    menu.style.top = `${rect.top - 10}px`;
+  }
+
+  document.body.appendChild(menu);
+
+  // Add click handlers
+  menu.querySelectorAll('.recruit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const count = parseInt(btn.dataset.count);
+      menu.remove();
+      doRecruitment(hexData, count);
+    });
+  });
+
+  menu.querySelector('.cancel').addEventListener('click', () => {
+    menu.remove();
+  });
+}
+
+function doRecruitment(hexData, knightCount) {
   socket.emit('battleAction', {
     action: 'recruitment',
     row: hexData.row,
-    col: hexData.col
+    col: hexData.col,
+    knightCount: knightCount
   });
 
   socket.once('battleActionResult', handleActionResult);
@@ -271,13 +367,35 @@ function executeMovement(hex, hexData) {
 function showKnightSelectionMenu(hex, hexData) {
   const menu = document.createElement('div');
   menu.className = 'knight-selection-menu';
+
+  // Get direction names for better UX
+  const getDirectionName = (fromRow, fromCol, toRow, toCol) => {
+    const dRow = toRow - fromRow;
+    const dCol = toCol - fromCol;
+    // Simplified direction naming
+    if (dRow < 0 && dCol === 0) return '↑ North';
+    if (dRow < 0 && dCol > 0) return '↗ Northeast';
+    if (dRow > 0 && dCol > 0) return '↘ Southeast';
+    if (dRow > 0 && dCol === 0) return '↓ South';
+    if (dRow > 0 && dCol < 0) return '↙ Southwest';
+    if (dRow < 0 && dCol < 0) return '↖ Northwest';
+    if (dCol > 0) return '→ East';
+    if (dCol < 0) return '← West';
+    return 'Adjacent';
+  };
+
   menu.innerHTML = `
-    <div class="knight-selection-title">Which knight to move?</div>
-    ${actionState.adjacentKnights.map((k, i) => `
-      <button class="knight-select-btn" data-index="${i}">
-        Knight at (${k.row}, ${k.col})
-      </button>
-    `).join('')}
+    <div class="knight-selection-title">Move knight from:</div>
+    ${actionState.adjacentKnights.map((k, i) => {
+      const direction = getDirectionName(k.row, k.col, hexData.row, hexData.col);
+      const knightCount = k.count > 1 ? ` (${k.count} knights)` : '';
+      return `
+        <button class="knight-select-btn" data-index="${i}" data-row="${k.row}" data-col="${k.col}">
+          <span class="knight-direction">${direction}</span>
+          <span class="knight-info">${knightCount}</span>
+        </button>
+      `;
+    }).join('')}
     <button class="knight-select-btn cancel">Cancel</button>
   `;
 
@@ -287,8 +405,30 @@ function showKnightSelectionMenu(hex, hexData) {
 
   document.body.appendChild(menu);
 
+  // Add highlight on hover
+  menu.querySelectorAll('.knight-select-btn:not(.cancel)').forEach(btn => {
+    btn.addEventListener('mouseenter', () => {
+      const row = btn.dataset.row;
+      const col = btn.dataset.col;
+      const sourceHex = document.querySelector(`.hexagon[data-row="${row}"][data-col="${col}"]`);
+      if (sourceHex) {
+        sourceHex.classList.add('knight-source-highlight');
+      }
+    });
+
+    btn.addEventListener('mouseleave', () => {
+      document.querySelectorAll('.knight-source-highlight').forEach(h => {
+        h.classList.remove('knight-source-highlight');
+      });
+    });
+  });
+
   menu.querySelectorAll('.knight-select-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      // Remove highlights
+      document.querySelectorAll('.knight-source-highlight').forEach(h => {
+        h.classList.remove('knight-source-highlight');
+      });
       menu.remove();
       if (btn.classList.contains('cancel')) {
         return;
@@ -502,8 +642,17 @@ function removeEndActionButton() {
 
 // Main hex click handler
 function handleHexClick(e) {
-  if (getCurrentPhase() !== 'battle') return;
-  if (!isMyTurn()) {
+  console.log('handleHexClick called');
+  console.log('Phase:', getCurrentPhase());
+  const myTurn = isMyTurn();
+  console.log('isMyTurn:', myTurn);
+  console.log('player.id:', player?.id);
+  if (getCurrentPhase() !== 'battle') {
+    console.log('Not in battle phase, returning');
+    return;
+  }
+  if (!myTurn) {
+    console.log('Not my turn, showing warning');
     showWarning('Not your turn!');
     return;
   }

@@ -68,6 +68,7 @@ function updatePlayerHighlight(currentPlayerId) {
 }
 
 export function isMyTurn() {
+  console.log('isMyTurn check - localPlayerId:', localPlayerId, 'currentTurnPlayerId:', currentTurnPlayerId);
   return localPlayerId && localPlayerId === currentTurnPlayerId;
 }
 
