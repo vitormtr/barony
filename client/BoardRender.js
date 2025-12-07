@@ -48,8 +48,12 @@ function createRow(rowIndex, rowData) {
 function createHexElement(row, col, hexData) {
   const hex = new Hex(row, col, hexData.texture);
   const element = hex.element;
-  setHexMetadata(element, { row, col, texture: hexData.texture });
+  setHexMetadata(element, { row, col, texture: hexData.texture, pieces: hexData.pieces });
   applyHexTexture(element, hexData.texture);
+  // Render pieces if they exist (for loaded games)
+  if (hexData.pieces && hexData.pieces.length > 0) {
+    renderPieces(element, hexData.pieces);
+  }
   return element;
 }
 
@@ -153,9 +157,9 @@ function getStructureName(type) {
   return names[type] || type;
 }
 
-function setHexMetadata(element, { row, col, texture }) {
+function setHexMetadata(element, { row, col, texture, pieces }) {
   domHelper.setDataset(element, {
-    hex: JSON.stringify({ row, col, texture }) 
+    hex: JSON.stringify({ row, col, texture, pieces })
   });
 }
 

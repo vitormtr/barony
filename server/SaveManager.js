@@ -49,6 +49,7 @@ export function saveGame(session, roomId) {
     fs.writeFileSync(filepath, JSON.stringify(saveData, null, 2));
 
     console.log(`Game saved to ${filename}`);
+    console.log(`  playerOnTurnColor: ${saveData.playerOnTurnColor}`);
 
     return {
         success: true,

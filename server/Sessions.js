@@ -437,10 +437,17 @@ export class Sessions {
         const roomId = this.getRoomIdBySocketId(socket.id);
         const session = this.session[roomId];
 
-        if (!session) return;
+        if (!session) {
+            console.log('endTurn: session not found for socket', socket.id);
+            return;
+        }
 
         // Validate it's this player's turn
-        if (!TurnManager.isPlayerTurn(session, socket.id)) return;
+        console.log('endTurn: playerOnTurn:', session.playerOnTurn?.id, 'socket.id:', socket.id);
+        if (!TurnManager.isPlayerTurn(session, socket.id)) {
+            console.log('endTurn: not this player turn');
+            return;
+        }
 
         // Process end of turn
         const result = TurnManager.processEndTurn(session, socket.id);
@@ -481,6 +488,21 @@ export class Sessions {
     emitBoardUpdate(session, io, roomId) {
         io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
         io.to(roomId).emit('drawPlayers', Object.values(session.players));
+    }
+
+    // Update piece owner IDs when player joins a loaded game
+    updatePieceOwners(boardState, oldId, newId) {
+        for (const row of boardState) {
+            for (const hex of row) {
+                if (hex.pieces) {
+                    for (const piece of hex.pieces) {
+                        if (piece.owner === oldId) {
+                            piece.owner = newId;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     isAdjacentToPosition(row1, col1, row2, col2) {
@@ -953,6 +975,9 @@ export class Sessions {
         delete session.players[oldPlayerId];
         session.players[socket.id] = player;
 
+        // Update owner IDs in board pieces
+        this.updatePieceOwners(session.boardState, oldPlayerId, socket.id);
+
         // Remove from available colors
         session.availableColors = session.availableColors.filter(c => c !== claimedColor);
 
@@ -978,6 +1003,7 @@ export class Sessions {
         socket.join(roomId);
 
         console.log(`Player claimed color ${claimedColor} in loaded game ${roomId}`);
+        console.log(`  playerOnTurnColor: ${session.playerOnTurnColor}, playerOnTurn: ${session.playerOnTurn?.color || 'null'}`);
 
         // Check if all players have joined
         const allJoined = session.availableColors.length === 0;
@@ -993,10 +1019,21 @@ export class Sessions {
                 }
             }
 
+            // Fallback: if playerOnTurn is still null, set to first player
+            if (!session.playerOnTurn) {
+                const players = Object.values(session.players);
+                if (players.length > 0) {
+                    session.playerOnTurn = players[0];
+                    console.log(`Warning: playerOnTurn was null, defaulting to first player: ${players[0].color}`);
+                }
+            }
+
             // Clean up loaded game flags
             delete session.loadedGame;
             delete session.availableColors;
             delete session.playerOnTurnColor;
+
+            console.log(`All players joined. Final playerOnTurn: ${session.playerOnTurn?.color || 'null'} (id: ${session.playerOnTurn?.id || 'null'})`);
         }
 
         return {
