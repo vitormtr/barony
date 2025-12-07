@@ -13,6 +13,7 @@ import * as BoardLogic from './BoardLogic.js';
 import * as BattleActions from './BattleActions.js';
 import * as BoardSetup from './BoardSetup.js';
 import * as InitialPlacement from './InitialPlacement.js';
+import * as PlayerManager from './PlayerManager.js';
 
 export class Sessions {
     constructor() {
@@ -44,7 +45,7 @@ export class Sessions {
             }
         };
 
-        const player = new Player(socket.id, this.getRandomColor(roomId));
+        const player = PlayerManager.createPlayer(socket.id, this.session[roomId]);
         this.session[roomId].players[socket.id] = player;
         this.session[roomId].playerOnTurn = player;
         socket.join(roomId);
@@ -535,10 +536,7 @@ export class Sessions {
 
         // Reset all players' textures and pieces
         const players = Object.values(session.players);
-        players.forEach(player => {
-            player.hexCount = new Player(player.id, player.color).hexCount;
-            player.pieces = new Player(player.id, player.color).pieces;
-        });
+        PlayerManager.resetAllPlayers(players);
 
         // Define first player as leader
         const leaderPlayer = session.players[session.leaderId];
@@ -570,33 +568,23 @@ export class Sessions {
     addPlayerToSession(socket, io, roomId) {
         const session = this.session[roomId];
 
-        if (!session) {
-            socket.emit('error', "Room not found!");
+        // Use PlayerManager for validation
+        const validation = PlayerManager.canPlayerJoin(session);
+        if (!validation.canJoin) {
+            socket.emit('error', validation.error);
             return;
         }
 
-        if (Object.keys(session.players).length >= 4) {
-            socket.emit('error', "Room is full!");
+        // Use PlayerManager to add player
+        const result = PlayerManager.addPlayer(session, socket.id);
+        if (!result.success) {
+            socket.emit('error', result.error);
             return;
         }
 
-        // Block entry after random distribution
-        if (session.lockedForEntry) {
-            socket.emit('error', "Entry blocked! The board has already been set up.");
-            return;
-        }
-
-        // Block entry after game started manually
-        if (session.gameStarted) {
-            socket.emit('error', "Game already started! Cannot join.");
-            return;
-        }
-
-        const player = new Player(socket.id, this.getRandomColor(roomId));
-        this.session[roomId].players[socket.id] = player;
         socket.join(roomId);
-        socket.emit('createBoard', this.session[roomId].boardState);
-        socket.emit('drawPlayers', this.session[roomId].players);
+        socket.emit('createBoard', session.boardState);
+        socket.emit('drawPlayers', session.players);
 
         // Send info about whose turn it is
         socket.emit('turnChanged', {
@@ -642,22 +630,11 @@ export class Sessions {
         }
 
         // Update turnOrder if in initial placement phase
-        if (session.initialPlacementState && session.initialPlacementState.turnOrder) {
-            session.initialPlacementState.turnOrder = session.initialPlacementState.turnOrder.filter(
-                p => p.id !== socket.id
-            );
-            // Adjust index if necessary
-            if (session.initialPlacementState.currentTurnIndex >= session.initialPlacementState.turnOrder.length) {
-                session.initialPlacementState.currentTurnIndex = 0;
-            }
-        }
+        PlayerManager.removeFromTurnOrder(session.initialPlacementState, socket.id);
 
         // If it was disconnected player's turn, pass to next
         if (wasCurrentTurn) {
-            // Find next player in order
-            const currentIndex = remainingPlayers.findIndex(p => p.id === session.playerOnTurn?.id);
-            const nextIndex = (currentIndex + 1) % remainingPlayers.length;
-            session.playerOnTurn = remainingPlayers[Math.max(0, nextIndex)] || remainingPlayers[0];
+            session.playerOnTurn = PlayerManager.getNextPlayer(remainingPlayers, socket.id);
 
             io.to(roomId).emit('turnChanged', {
                 currentPlayerId: session.playerOnTurn.id,
@@ -669,10 +646,10 @@ export class Sessions {
 
         // If leader left, promote another player
         if (session.leaderId === socket.id) {
-            session.leaderId = remainingPlayers[0].id;
-            console.log(`New leader: ${remainingPlayers[0].color}`);
+            const newLeader = PlayerManager.promoteNewLeader(session, remainingPlayers);
+            console.log(`New leader: ${newLeader.color}`);
             // Notify new leader
-            io.to(session.leaderId).emit('youAreLeader');
+            io.to(newLeader.id).emit('youAreLeader');
         }
 
         // Notify other players
@@ -784,18 +761,7 @@ export class Sessions {
     }
 
     getRandomColor(roomId) {
-        const session = this.session[roomId];
-
-        if (!session) {
-            return PLAYER_COLORS[Math.floor(Math.random() * PLAYER_COLORS.length)];
-        }
-
-        const usedColors = Object.values(session.players).map(player => player.color);
-        const availableColors = PLAYER_COLORS.filter(color => !usedColors.includes(color));
-
-        return availableColors.length > 0
-            ? availableColors[Math.floor(Math.random() * availableColors.length)]
-            : null;
+        return PlayerManager.getRandomColor(this.session[roomId]);
     }
 
     getPlayersInRoom(roomId) {
@@ -814,57 +780,10 @@ export class Sessions {
     rejoinRoom(socket, io, roomId, playerColor) {
         const session = this.session[roomId];
 
-        if (!session) {
-            return { success: false, message: 'Room not found' };
-        }
-
-        // Find existing player by color
-        const existingPlayer = Object.values(session.players).find(p => p.color === playerColor);
-
-        if (!existingPlayer) {
-            return { success: false, message: 'Player not found in this room' };
-        }
-
-        // Get the old socket ID
-        const oldSocketId = existingPlayer.id;
-
-        // Update player's socket ID
-        existingPlayer.id = socket.id;
-
-        // Update players object with new key
-        delete session.players[oldSocketId];
-        session.players[socket.id] = existingPlayer;
-
-        // Update leader if this was the leader
-        if (session.leaderId === oldSocketId) {
-            session.leaderId = socket.id;
-        }
-
-        // Update playerOnTurn if this player is on turn
-        if (session.playerOnTurn && session.playerOnTurn.id === oldSocketId) {
-            session.playerOnTurn.id = socket.id;
-        }
-
-        // Update turn order if exists
-        if (session.initialPlacementState && session.initialPlacementState.turnOrder) {
-            const turnOrderIndex = session.initialPlacementState.turnOrder.indexOf(oldSocketId);
-            if (turnOrderIndex !== -1) {
-                session.initialPlacementState.turnOrder[turnOrderIndex] = socket.id;
-            }
-        }
-
-        // Update pieces ownership on board
-        for (let row = 0; row < session.boardState.length; row++) {
-            for (let col = 0; col < session.boardState[row].length; col++) {
-                const hex = session.boardState[row][col];
-                if (hex.pieces) {
-                    hex.pieces.forEach(piece => {
-                        if (piece.owner === oldSocketId) {
-                            piece.owner = socket.id;
-                        }
-                    });
-                }
-            }
+        // Use PlayerManager for rejoin logic
+        const result = PlayerManager.rejoinPlayer(session, socket.id, playerColor);
+        if (!result.success) {
+            return { success: false, message: result.error };
         }
 
         // Join socket to room
@@ -875,11 +794,11 @@ export class Sessions {
         // Build response data
         const responseData = {
             roomId,
-            player: existingPlayer,
+            player: result.player,
             players: session.players,
             boardState: session.boardState,
             gamePhase: session.gamePhase,
-            isLeader: session.leaderId === socket.id,
+            isLeader: result.isLeader,
             currentTurn: session.playerOnTurn ? {
                 currentPlayerId: session.playerOnTurn.id,
                 currentPlayerColor: session.playerOnTurn.color
@@ -890,27 +809,12 @@ export class Sessions {
         if (session.gamePhase === 'initialPlacement') {
             responseData.placementState = {
                 step: session.initialPlacementState.placementStep,
-                citiesRemaining: this.getCitiesRemainingForPlayer(session, socket.id)
+                citiesRemaining: PlayerManager.getCitiesRemainingForPlayer(
+                    session.initialPlacementState, socket.id
+                )
             };
         }
 
         return { success: true, data: responseData };
-    }
-
-    // Helper to get cities remaining for a player in initial placement
-    getCitiesRemainingForPlayer(session, playerId) {
-        if (!session.initialPlacementState || !session.initialPlacementState.placementSequence) {
-            return 0;
-        }
-
-        const currentTurn = session.initialPlacementState.placementSequence[
-            session.initialPlacementState.currentSequenceIndex
-        ];
-
-        if (currentTurn && currentTurn.playerId === playerId) {
-            return currentTurn.citiesToPlace - (currentTurn.citiesPlaced || 0);
-        }
-
-        return 0;
     }
 }
