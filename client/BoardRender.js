@@ -117,15 +117,15 @@ function renderPieces(element, pieces) {
     });
 
     const knightsContainer = document.createElement('div');
-    const totalKnights = Math.min(knights.length, 3);
+    const totalKnights = Math.min(knights.length, 4);
     knightsContainer.className = `knights-container knights-${totalKnights}`;
 
-    // Show up to 3 knights total, prioritizing color variety
+    // Show up to 4 knights total, prioritizing color variety
     let knightsShown = 0;
     const colors = Object.keys(knightsByColor);
     let colorIndex = 0;
 
-    while (knightsShown < 3 && knightsShown < knights.length) {
+    while (knightsShown < 4 && knightsShown < knights.length) {
       const color = colors[colorIndex % colors.length];
       if (knightsByColor[color].length > 0) {
         const knight = knightsByColor[color].shift();

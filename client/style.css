@@ -1025,6 +1025,10 @@ button:active {
   z-index: 3;
 }
 
+.knights-container .piece-knight:nth-child(4) {
+  z-index: 4;
+}
+
 /* Cavaleiros um pouco menores para caber melhor */
 .knights-container.knights-2 .piece-knight,
 .knights-container.knights-3 .piece-knight {
@@ -1032,9 +1036,18 @@ button:active {
   height: 24px;
 }
 
+.knights-container.knights-4 .piece-knight {
+  width: 20px;
+  height: 20px;
+}
+
 .knights-container.knights-2 .piece-knight::after,
 .knights-container.knights-3 .piece-knight::after {
   font-size: 0.9rem;
+}
+
+.knights-container.knights-4 .piece-knight::after {
+  font-size: 0.8rem;
 }
 
 .piece-stronghold {
