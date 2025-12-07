@@ -14,6 +14,7 @@ import * as BattleActions from './BattleActions.js';
 import * as BoardSetup from './BoardSetup.js';
 import * as InitialPlacement from './InitialPlacement.js';
 import * as PlayerManager from './PlayerManager.js';
+import * as TurnManager from './TurnManager.js';
 
 export class Sessions {
     constructor() {
@@ -393,16 +394,16 @@ export class Sessions {
 
     // Check victory condition (someone became Duke)
     checkVictoryCondition(session, player, io, roomId) {
-        if (player.title === 'duke' && !session.gameEnding) {
-            // Mark that game is ending
-            session.gameEnding = true;
-            session.dukePlayerId = player.id;
+        const result = TurnManager.checkVictoryCondition(player, session);
+
+        if (result.victory) {
+            TurnManager.markGameEnding(session, player.id);
 
             // Notify all that someone became Duke
             io.to(roomId).emit('dukeAnnounced', {
                 playerId: player.id,
                 playerColor: player.color,
-                message: `${player.color} became Duke! Finishing the round...`
+                message: result.message
             });
 
             return 'You became Duke! The game will end at the end of this round.';
@@ -412,38 +413,22 @@ export class Sessions {
 
     // Calculate player's final score
     calculateFinalScore(player) {
-        return BattleActions.calculateFinalScore(player);
+        return TurnManager.calculateFinalScore(player);
     }
 
     // End game and calculate winner
     endGame(session, io, roomId) {
-        session.gamePhase = GAME_PHASES.ENDED;
-
-        const players = Object.values(session.players);
-        const scores = players.map(p => ({
-            id: p.id,
-            color: p.color,
-            score: this.calculateFinalScore(p),
-            title: p.getTitleName(),
-            resources: p.getTotalResources(),
-            victoryPoints: p.victoryPoints
-        }));
-
-        // Sort by score (highest first)
-        scores.sort((a, b) => b.score - a.score);
-
-        // In case of tie, winner is furthest from first player
-        // (simplified implementation: maintains current order in case of tie)
+        const result = TurnManager.endGame(session);
 
         io.to(roomId).emit('gameEnded', {
-            scores,
-            winner: scores[0],
-            message: `Game over! ${scores[0].color} won with ${scores[0].score} points!`
+            scores: result.scores,
+            winner: result.winner,
+            message: result.message
         });
 
-        console.log(`Game ended in room ${roomId}. Winner: ${scores[0].color}`);
+        console.log(`Game ended in room ${roomId}. Winner: ${result.winner.color}`);
 
-        return scores;
+        return result.scores;
     }
 
     // Pass turn to next player
@@ -453,27 +438,30 @@ export class Sessions {
 
         if (!session) return;
 
-        if (session.playerOnTurn.id !== socket.id) return;
+        // Validate it's this player's turn
+        if (!TurnManager.isPlayerTurn(session, socket.id)) return;
 
-        const players = Object.values(session.players);
-        const currentIndex = players.findIndex(p => p.id === socket.id);
-        const nextIndex = (currentIndex + 1) % players.length;
+        // Process end of turn
+        const result = TurnManager.processEndTurn(session, socket.id);
 
-        // Check if round ended (returned to first player) and game is ending
-        if (session.gameEnding && nextIndex === 0) {
-            // All played, end game
-            this.endGame(session, io, roomId);
+        if (result.gameEnded) {
+            // Game ended, notify players
+            io.to(roomId).emit('gameEnded', {
+                scores: result.scores,
+                winner: result.winner,
+                message: result.message
+            });
+            console.log(`Game ended in room ${roomId}. Winner: ${result.winner.color}`);
             return;
         }
 
-        session.playerOnTurn = players[nextIndex];
-
+        // Emit turn change
         io.to(roomId).emit('turnChanged', {
-            currentPlayerId: session.playerOnTurn.id,
-            currentPlayerColor: session.playerOnTurn.color
+            currentPlayerId: result.turnInfo.playerId,
+            currentPlayerColor: result.turnInfo.playerColor
         });
 
-        io.to(roomId).emit('drawPlayers', players);
+        io.to(roomId).emit('drawPlayers', Object.values(session.players));
     }
 
     // Utilities - delegating to BoardLogic module
