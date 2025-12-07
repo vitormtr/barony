@@ -10,6 +10,7 @@ import {
     PLAYER_COLORS
 } from './constants.js';
 import * as BoardLogic from './BoardLogic.js';
+import * as BattleActions from './BattleActions.js';
 
 export class Sessions {
     constructor() {
@@ -560,412 +561,70 @@ export class Sessions {
 
     // RECRUITMENT: Add 2 knights to a city (3 if adjacent to lake)
     actionRecruitment(session, player, payload, io, roomId) {
-        const { row, col } = payload;
-        const hex = session.boardState[row]?.[col];
-
-        if (!hex) {
-            return { success: false, message: 'Invalid hex!' };
+        const result = BattleActions.executeRecruitment(session.boardState, player, payload, session.players);
+        if (result.success) {
+            this.emitBoardUpdate(session, io, roomId);
         }
-
-        // Check if player has a city
-        const hasCity = hex.pieces?.some(p => p.type === 'city' && p.color === player.color);
-        if (!hasCity) {
-            return { success: false, message: 'Select one of your cities!' };
-        }
-
-        // Check if adjacent to water (lake)
-        const adjacentToWater = this.isAdjacentToWater(session.boardState, row, col);
-        const knightsToAdd = adjacentToWater ? 3 : 2;
-
-        // Check if enough knights available
-        if (player.pieces.knight < knightsToAdd) {
-            return { success: false, message: `You don't have ${knightsToAdd} knights available!` };
-        }
-
-        // Add knights
-        for (let i = 0; i < knightsToAdd; i++) {
-            hex.pieces.push({
-                type: 'knight',
-                owner: player.id,
-                color: player.color
-            });
-            player.pieces.knight--;
-        }
-
-        this.emitBoardUpdate(session, io, roomId);
-
-        return {
-            success: true,
-            message: `${knightsToAdd} knights recruited!${adjacentToWater ? ' (Lake bonus!)' : ''}`
-        };
+        return result;
     }
 
     // MOVEMENT: Move a knight to adjacent hex (with combat)
     actionMovement(session, player, payload, io, roomId) {
-        const { from, to } = payload;
-        const fromHex = session.boardState[from.row]?.[from.col];
-        const toHex = session.boardState[to.row]?.[to.col];
-
-        if (!fromHex || !toHex) {
-            return { success: false, message: 'Invalid hex!' };
+        const result = BattleActions.executeMovement(session.boardState, player, payload, session.players);
+        if (result.success) {
+            this.emitBoardUpdate(session, io, roomId);
         }
-
-        // Check if player has knight in source hex
-        const knightIndex = fromHex.pieces?.findIndex(p => p.type === 'knight' && p.color === player.color);
-        if (knightIndex === -1 || knightIndex === undefined) {
-            return { success: false, message: 'No knight of yours in this hex!' };
-        }
-
-        // Check adjacency
-        if (!this.isAdjacentToPosition(from.row, from.col, to.row, to.col)) {
-            return { success: false, message: 'Destination must be adjacent!' };
-        }
-
-        // Check if destination has texture and is not water
-        if (!toHex.texture || toHex.texture === 'water.png') {
-            return { success: false, message: 'Cannot move to water or empty hex!' };
-        }
-
-        const toPieces = toHex.pieces || [];
-
-        // Check for enemy city (inaccessible)
-        const hasEnemyCity = toPieces.some(p => p.type === 'city' && p.color !== player.color);
-        if (hasEnemyCity) {
-            return { success: false, message: 'Cannot enter enemy city!' };
-        }
-
-        // Check for enemy stronghold (inaccessible)
-        const hasEnemyStronghold = toPieces.some(p => p.type === 'stronghold' && p.color !== player.color);
-        if (hasEnemyStronghold) {
-            return { success: false, message: 'Cannot enter enemy stronghold!' };
-        }
-
-        // Count enemy knights at destination
-        const enemyKnights = toPieces.filter(p => p.type === 'knight' && p.color !== player.color);
-
-        // Check for 2+ enemy knights (cannot enter)
-        if (enemyKnights.length >= 2) {
-            return { success: false, message: 'Cannot enter hex with 2+ enemy knights!' };
-        }
-
-        // Check mountain with any enemy piece
-        if (toHex.texture === 'mountain.png') {
-            const hasAnyEnemyPiece = toPieces.some(p => p.color !== player.color);
-            if (hasAnyEnemyPiece) {
-                return { success: false, message: 'Cannot enter mountain occupied by enemy!' };
-            }
-        }
-
-        // Move the knight
-        const knight = fromHex.pieces.splice(knightIndex, 1)[0];
-        if (!toHex.pieces) toHex.pieces = [];
-        toHex.pieces.push(knight);
-
-        // Process combat after movement
-        const combatResult = this.processCombat(session, player, toHex, to.row, to.col);
-
-        this.emitBoardUpdate(session, io, roomId);
-
-        let message = 'Knight moved!';
-        if (combatResult.occurred) {
-            message = combatResult.message;
-        }
-
-        return { success: true, message };
-    }
-
-    // Process combat in hex
-    processCombat(session, player, hex, row, col) {
-        const pieces = hex.pieces || [];
-
-        // Count current player's pieces
-        const playerKnights = pieces.filter(p => p.type === 'knight' && p.color === player.color);
-
-        // Find enemy pieces
-        const enemyPieces = pieces.filter(p => p.color !== player.color);
-
-        if (enemyPieces.length === 0) {
-            return { occurred: false };
-        }
-
-        // Player knights vs enemy pieces
-        const playerKnightCount = playerKnights.length;
-
-        // Check enemy villages (need 2 knights to destroy)
-        const enemyVillages = enemyPieces.filter(p => p.type === 'village');
-        const enemyKnights = enemyPieces.filter(p => p.type === 'knight');
-
-        let destroyed = [];
-        let resourceGained = null;
-
-        // Combat against villages: 2 knights destroy 1 village
-        if (playerKnightCount >= 2 && enemyVillages.length > 0) {
-            const village = enemyVillages[0];
-            const villageIndex = hex.pieces.findIndex(p => p === village);
-            if (villageIndex !== -1) {
-                hex.pieces.splice(villageIndex, 1);
-                destroyed.push('village');
-
-                // Return village to owner
-                const villageOwner = Object.values(session.players).find(p => p.color === village.color);
-                if (villageOwner) {
-                    villageOwner.pieces.village++;
-                }
-
-                // Attacker gains terrain resource
-                resourceGained = player.addResource(hex.texture);
-            }
-        }
-
-        // Combat against knights: numerical superiority destroys
-        // 2+ player knights destroy enemy knights (1 at a time per movement)
-        if (playerKnightCount >= 2 && enemyKnights.length > 0) {
-            // Peaceful coexistence: 1 vs 1 no combat
-            // With 2+ knights, destroy enemy knight
-            const enemyKnight = enemyKnights[0];
-            const enemyKnightIndex = hex.pieces.findIndex(p => p === enemyKnight);
-            if (enemyKnightIndex !== -1) {
-                hex.pieces.splice(enemyKnightIndex, 1);
-                destroyed.push('knight');
-
-                // Return knight to owner
-                const knightOwner = Object.values(session.players).find(p => p.color === enemyKnight.color);
-                if (knightOwner) {
-                    knightOwner.pieces.knight++;
-                }
-            }
-        }
-
-        if (destroyed.length > 0) {
-            let message = `Combat! Destroyed: ${destroyed.join(', ')}`;
-            if (resourceGained) {
-                message += ` (+1 ${this.getResourceName(resourceGained)})`;
-            }
-            return { occurred: true, message, destroyed, resourceGained };
-        }
-
-        return { occurred: false };
+        return result;
     }
 
     // CONSTRUCTION: Replace knight with village or stronghold
     actionConstruction(session, player, payload, io, roomId) {
-        const { row, col, buildType } = payload;
-        const hex = session.boardState[row]?.[col];
-
-        if (!hex) {
-            return { success: false, message: 'Invalid hex!' };
+        const result = BattleActions.executeConstruction(session.boardState, player, payload, session.players);
+        if (result.success) {
+            this.emitBoardUpdate(session, io, roomId);
         }
-
-        // Check if player has knight
-        const knightIndex = hex.pieces?.findIndex(p => p.type === 'knight' && p.color === player.color);
-        if (knightIndex === -1 || knightIndex === undefined) {
-            return { success: false, message: 'No knight of yours in this hex!' };
-        }
-
-        // Check if structure already exists
-        const hasStructure = hex.pieces?.some(p => ['city', 'stronghold', 'village'].includes(p.type));
-        if (hasStructure) {
-            return { success: false, message: 'A structure already exists in this hex!' };
-        }
-
-        // Check for enemy knight (cannot build)
-        const hasEnemyKnight = hex.pieces?.some(p => p.type === 'knight' && p.color !== player.color);
-        if (hasEnemyKnight) {
-            return { success: false, message: 'Cannot build with enemy knight present!' };
-        }
-
-        // Check available pieces
-        if (buildType === 'village' && player.pieces.village <= 0) {
-            return { success: false, message: 'No villages available!' };
-        }
-        if (buildType === 'stronghold' && player.pieces.stronghold <= 0) {
-            return { success: false, message: 'No strongholds available!' };
-        }
-
-        // Terrain validation for stronghold (any terrain except water)
-        if (buildType === 'stronghold') {
-            if (!hex.texture || hex.texture === 'water.png') {
-                return { success: false, message: 'Strongholds cannot be built on water!' };
-            }
-        }
-
-        // Remove knight (returns to reserve)
-        hex.pieces.splice(knightIndex, 1);
-        player.pieces.knight++;
-
-        // Add structure
-        hex.pieces.push({
-            type: buildType,
-            owner: player.id,
-            color: player.color
-        });
-        player.pieces[buildType]--;
-
-        // Gain resource corresponding to terrain
-        const resource = player.addResource(hex.texture);
-
-        this.emitBoardUpdate(session, io, roomId);
-
-        const resourceName = resource ? this.getResourceName(resource) : '';
-        return {
-            success: true,
-            message: `${buildType === 'village' ? 'Village' : 'Stronghold'} built!${resource ? ` +1 ${resourceName}` : ''}`
-        };
+        return result;
     }
 
     // NEW CITY: Replace village with city
     actionNewCity(session, player, payload, io, roomId) {
-        const { row, col } = payload;
-        const hex = session.boardState[row]?.[col];
-
-        if (!hex) {
-            return { success: false, message: 'Invalid hex!' };
-        }
-
-        // Check if player has village
-        const villageIndex = hex.pieces?.findIndex(p => p.type === 'village' && p.color === player.color);
-        if (villageIndex === -1 || villageIndex === undefined) {
-            return { success: false, message: 'No village of yours in this hex!' };
-        }
-
-        // Check if city available
-        if (player.pieces.city <= 0) {
-            return { success: false, message: 'No cities available!' };
-        }
-
-        // Check not forest (city cannot be in forest)
-        if (hex.texture === 'forest.png') {
-            return { success: false, message: 'Cities cannot be built in forest!' };
-        }
-
-        // Check no adjacent city (from any player)
-        if (this.hasAdjacentCity(session.boardState, row, col)) {
-            return { success: false, message: 'Cannot build city adjacent to another city!' };
-        }
-
-        // Remove village (returns to reserve)
-        hex.pieces.splice(villageIndex, 1);
-        player.pieces.village++;
-
-        // Add city
-        hex.pieces.push({
-            type: 'city',
-            owner: player.id,
-            color: player.color
-        });
-        player.pieces.city--;
-
-        // Gain 10 victory points
-        player.addVictoryPoints(10);
-
-        // Verifica condição de vitória
-        const victoryResult = this.checkVictoryCondition(session, player, io, roomId);
-
-        this.emitBoardUpdate(session, io, roomId);
-
-        let message = 'New city founded! +10 victory points!';
-        if (victoryResult) {
-            message += ' ' + victoryResult;
-        }
-
-        return { success: true, message };
-    }
-
-    // Check if there's an adjacent city
-    hasAdjacentCity(boardState, row, col) {
-        const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
-
-        for (const [dRow, dCol] of directions) {
-            const newRow = row + dRow;
-            const newCol = col + dCol;
-
-            if (newRow >= 0 && newRow < boardState.length &&
-                newCol >= 0 && newCol < boardState[0].length) {
-                const neighbor = boardState[newRow][newCol];
-                if (neighbor.pieces?.some(p => p.type === 'city')) {
-                    return true;
+        const result = BattleActions.executeNewCity(session.boardState, player, payload, session.players);
+        if (result.success) {
+            // Check victory condition
+            if (result.checkVictory) {
+                const victoryResult = this.checkVictoryCondition(session, player, io, roomId);
+                if (victoryResult) {
+                    result.message += ' ' + victoryResult;
                 }
             }
+            this.emitBoardUpdate(session, io, roomId);
         }
-        return false;
+        return result;
     }
 
     // EXPEDITION: Place knight on board edge
     actionExpedition(session, player, payload, io, roomId) {
-        const { row, col } = payload;
-        const hex = session.boardState[row]?.[col];
-
-        if (!hex) {
-            return { success: false, message: 'Invalid hex!' };
+        const result = BattleActions.executeExpedition(session.boardState, player, payload, session.players);
+        if (result.success) {
+            this.emitBoardUpdate(session, io, roomId);
         }
-
-        // Check if 2 knights available in reserve
-        if (player.pieces.knight < 2) {
-            return { success: false, message: 'You need 2 knights in reserve!' };
-        }
-
-        // Check if hex has texture and is not water
-        if (!hex.texture || hex.texture === 'water.png') {
-            return { success: false, message: 'Select a valid hex!' };
-        }
-
-        // Check if empty
-        if (hex.pieces && hex.pieces.length > 0) {
-            return { success: false, message: 'The hex must be empty!' };
-        }
-
-        // Check if border
-        if (!this.isBorderHex(session.boardState, row, col)) {
-            return { success: false, message: 'Select a hex on the board edge!' };
-        }
-
-        // Remove 2 knights from reserve, 1 goes back to box (permanently lost)
-        player.pieces.knight -= 2;
-
-        // Place 1 knight on board
-        if (!hex.pieces) hex.pieces = [];
-        hex.pieces.push({
-            type: 'knight',
-            owner: player.id,
-            color: player.color
-        });
-
-        this.emitBoardUpdate(session, io, roomId);
-
-        return { success: true, message: 'Expedition complete! 1 knight placed on the edge.' };
+        return result;
     }
 
     // NOBLE TITLE: Spend 15 resources to advance title
     actionNobleTitle(session, player, payload, io, roomId) {
-        const totalResources = player.getTotalResources();
-
-        if (totalResources < 15) {
-            return { success: false, message: `Insufficient resources! ${totalResources}/15` };
+        const result = BattleActions.executeNobleTitle(session.boardState, player, payload, session.players);
+        if (result.success) {
+            // Check victory condition
+            if (result.checkVictory) {
+                const victoryResult = this.checkVictoryCondition(session, player, io, roomId);
+                if (victoryResult) {
+                    result.message += ' ' + victoryResult;
+                }
+            }
+            this.emitBoardUpdate(session, io, roomId);
         }
-
-        if (player.title === 'duke') {
-            return { success: false, message: 'You are already Duke!' };
-        }
-
-        // Spend 15 resources
-        player.spendResources(15);
-
-        // Advance title
-        const oldTitle = player.getTitleName();
-        player.promoteTitle();
-        const newTitle = player.getTitleName();
-
-        // Check victory condition (if became Duke)
-        const victoryResult = this.checkVictoryCondition(session, player, io, roomId);
-
-        this.emitBoardUpdate(session, io, roomId);
-
-        let message = `Title elevated from ${oldTitle} to ${newTitle}!`;
-        if (victoryResult) {
-            message += ' ' + victoryResult;
-        }
-
-        return { success: true, message };
+        return result;
     }
 
     // Check victory condition (someone became Duke)
@@ -989,24 +648,7 @@ export class Sessions {
 
     // Calculate player's final score
     calculateFinalScore(player) {
-        // Accumulated victory points (new cities = 10 points each)
-        let score = player.victoryPoints;
-
-        // Points for remaining resources (silver value)
-        // Each resource is worth 1 point at the end
-        score += player.getTotalResources();
-
-        // Points for title
-        const titlePoints = {
-            baron: 0,
-            viscount: 5,
-            count: 10,
-            marquis: 15,
-            duke: 25
-        };
-        score += titlePoints[player.title] || 0;
-
-        return score;
+        return BattleActions.calculateFinalScore(player);
     }
 
     // End game and calculate winner
