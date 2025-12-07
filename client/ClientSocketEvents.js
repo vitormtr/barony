@@ -194,7 +194,15 @@ function handlePlayerJoinedRoom(currentPlayer) {
 
 export function handlePlayerDataResponse(playerData) {
   console.log('Player data received:', playerData);
-  player = playerData;
+  if (player) {
+    // Update properties in place to preserve the exported reference
+    Object.assign(player, playerData);
+  } else {
+    player = playerData;
+  }
+  // Calculate resource points for title card display
+  player.resourcePoints = calculateResourcePoints(player.resources);
+  player.titleName = getTitleName(player.title);
   setLocalPlayer(playerData.id);
   updateTitleCard();
 }

@@ -291,8 +291,8 @@ describe('Sessions', () => {
       player.title = 'count';
 
       const score = sessions.calculateFinalScore(player);
-      // 20 VP + 15 resources + 10 (count title) = 45
-      expect(score).toBe(45);
+      // 20 VP + 58 resources (5*5 + 3*3 + 2*2 + 5*4) + 10 (count title) = 88
+      expect(score).toBe(88);
     });
 
     test('should give 25 points for duke title', () => {
@@ -432,7 +432,8 @@ describe('Battle Actions', () => {
     test('should require 15 resources', () => {
       const session = sessions.session[roomId];
       const player = session.players['socket1'];
-      player.resources = { field: 5, forest: 5, mountain: 2, plain: 2 };
+      // Total: 1*5 + 1*3 + 1*2 + 1*4 = 14 (less than 15)
+      player.resources = { field: 1, forest: 1, mountain: 1, plain: 1 };
 
       const result = sessions.actionNobleTitle(session, player, {}, mockIo, roomId);
       expect(result.success).toBe(false);

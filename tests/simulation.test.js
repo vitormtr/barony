@@ -300,8 +300,8 @@ describe('Full 4-Player Game Simulation', () => {
       player.title = 'marquis';  // 15 points
 
       const score = sessions.calculateFinalScore(player);
-      // 30 VP + 15 resources + 15 (marquis) = 60
-      expect(score).toBe(60);
+      // 30 VP + 58 resources (5*5 + 3*3 + 2*2 + 5*4) + 15 (marquis) = 103
+      expect(score).toBe(103);
     });
   });
 

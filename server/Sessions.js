@@ -584,6 +584,11 @@ export class Sessions {
     addPlayerToSession(socket, io, roomId) {
         const session = this.session[roomId];
 
+        if (!session) {
+            socket.emit('error', 'Room not found!');
+            return;
+        }
+
         // If this is a loaded game, show color selection
         if (session.loadedGame && session.availableColors?.length > 0) {
             socket.emit('loadedGameColorSelect', {

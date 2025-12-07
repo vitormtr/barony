@@ -113,7 +113,8 @@ describe('Player', () => {
       player.resources.forest = 2;
       player.resources.mountain = 5;
       player.resources.plain = 4;
-      expect(player.getTotalResources()).toBe(14);
+      // getTotalResources returns points: 3*5 + 2*3 + 5*2 + 4*4 = 47
+      expect(player.getTotalResources()).toBe(47);
     });
   });
 
@@ -121,13 +122,16 @@ describe('Player', () => {
     test('should spend resources correctly', () => {
       player.resources.field = 10;
       player.resources.forest = 5;
+      // Total: 10*5 + 5*3 = 65 points
       const success = player.spendResources(15);
       expect(success).toBe(true);
-      expect(player.getTotalResources()).toBe(0);
+      // After spending 15: 65 - 15 = 50
+      expect(player.getTotalResources()).toBe(50);
     });
 
     test('should return true when exact amount available', () => {
-      player.resources.field = 15;
+      // 3 fields = 3*5 = 15 points
+      player.resources.field = 3;
       const success = player.spendResources(15);
       expect(success).toBe(true);
     });
@@ -136,8 +140,11 @@ describe('Player', () => {
       player.resources.field = 5;
       player.resources.forest = 5;
       player.resources.mountain = 5;
+      // Total: 5*5 + 5*3 + 5*2 = 50 points
       player.spendResources(12);
-      expect(player.getTotalResources()).toBe(3);
+      // Spends from cheapest first: 5 mountain (10pts) + 1 forest (3pts) = 13pts spent
+      // After spending 13: 50 - 13 = 37
+      expect(player.getTotalResources()).toBe(37);
     });
   });
 

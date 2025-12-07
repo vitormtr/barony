@@ -105,9 +105,8 @@ export function handleSocketEvents(socket, io, sessionManager) {
       logger.error('Player not found', { socketId: socket.id });
       return;
     }
-    const playerObj = new Player(player.id, player.color, player.hexCount, player.pieces);
-
-    socket.emit(SOCKET_EVENTS.PLAYER_DATA_RESPONSE, JSON.parse(JSON.stringify(playerObj)));
+    // Send all player data including resources, title, and victory points
+    socket.emit(SOCKET_EVENTS.PLAYER_DATA_RESPONSE, JSON.parse(JSON.stringify(player)));
   }
 
   const handleDisconnect = () => {
