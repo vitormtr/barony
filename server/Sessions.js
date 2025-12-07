@@ -9,6 +9,7 @@ import {
     KNIGHT_VALID_TERRAINS,
     PLAYER_COLORS
 } from './constants.js';
+import * as BoardLogic from './BoardLogic.js';
 
 export class Sessions {
     constructor() {
@@ -1069,40 +1070,17 @@ export class Sessions {
         io.to(roomId).emit('drawPlayers', players);
     }
 
-    // Utilities
+    // Utilities - delegating to BoardLogic module
     isAdjacentToWater(boardState, row, col) {
-        const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
-
-        return directions.some(([dRow, dCol]) => {
-            const newRow = row + dRow;
-            const newCol = col + dCol;
-            if (newRow < 0 || newRow >= boardState.length) return false;
-            if (newCol < 0 || newCol >= boardState[0].length) return false;
-            return boardState[newRow][newCol].texture === 'water.png';
-        });
+        return BoardLogic.isAdjacentToWater(boardState, row, col);
     }
 
     isBorderHex(boardState, row, col) {
-        const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
-
-        for (const [dRow, dCol] of directions) {
-            const newRow = row + dRow;
-            const newCol = col + dCol;
-            if (newRow < 0 || newRow >= boardState.length) return true;
-            if (newCol < 0 || newCol >= boardState[0].length) return true;
-            if (!boardState[newRow][newCol].texture) return true;
-        }
-        return false;
+        return BoardLogic.isBorderHex(boardState, row, col);
     }
 
     getResourceName(resource) {
-        const names = {
-            field: 'Field',
-            forest: 'Forest',
-            mountain: 'Mountain',
-            plain: 'Plain'
-        };
-        return names[resource] || resource;
+        return BoardLogic.getResourceName(resource);
     }
 
     emitBoardUpdate(session, io, roomId) {
@@ -1110,36 +1088,12 @@ export class Sessions {
         io.to(roomId).emit('drawPlayers', Object.values(session.players));
     }
 
-    // Check if two positions are adjacent
     isAdjacentToPosition(row1, col1, row2, col2) {
-        const directions = row1 % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
-
-        return directions.some(([dRow, dCol]) => {
-            return (row1 + dRow === row2) && (col1 + dCol === col2);
-        });
+        return BoardLogic.isAdjacentToPosition(row1, col1, row2, col2);
     }
 
-    // Check if position is adjacent to any existing city
     isAdjacentToCity(boardState, row, col) {
-        const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
-
-        return directions.some(([dRow, dCol]) => {
-            const newRow = row + dRow;
-            const newCol = col + dCol;
-
-            // Check board limits
-            if (newRow < 0 || newRow >= boardState.length) return false;
-            if (newCol < 0 || newCol >= boardState[0].length) return false;
-
-            const hex = boardState[newRow][newCol];
-
-            // Check if there's a city in this hex
-            if (hex.pieces && hex.pieces.length > 0) {
-                return hex.pieces.some(piece => piece.type === 'city');
-            }
-
-            return false;
-        });
+        return BoardLogic.isAdjacentToCity(boardState, row, col);
     }
 
     // Restart game (leader only with roomId confirmation)
@@ -1204,13 +1158,8 @@ export class Sessions {
         return { success: true, message: 'Game restarted successfully!' };
     }
 
-    // Helper function to shuffle array
     shuffleArray(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
+        return BoardLogic.shuffleArray(array);
     }
 
     addPlayerToSession(socket, io, roomId) {
@@ -1408,25 +1357,12 @@ export class Sessions {
         return { success: true };
     }
 
-    // Check if any texture exists on board
     hasAnyTexture(boardState) {
-        return boardState.some(row => row.some(hex => hex.texture !== null));
+        return BoardLogic.hasAnyTexture(boardState);
     }
 
-    // Check if position is adjacent to existing texture
     isAdjacentToTexture(boardState, row, col) {
-        const directions = row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
-
-        return directions.some(([dRow, dCol]) => {
-            const newRow = row + dRow;
-            const newCol = col + dCol;
-
-            // Check board limits
-            if (newRow < 0 || newRow >= boardState.length) return false;
-            if (newCol < 0 || newCol >= boardState[0].length) return false;
-
-            return boardState[newRow][newCol].texture !== null;
-        });
+        return BoardLogic.isAdjacentToTexture(boardState, row, col);
     }
 
     // Check if all players used all textures
