@@ -25,7 +25,7 @@ export class Player {
         if (this.hexCount[textureUsed] > 0) {
             this.hexCount[textureUsed]--;
         } else {
-            console.log(`Sem hexágonos disponíveis para a textura ${textureUsed}`);
+            console.log(`No hexes available for texture ${textureUsed}`);
         }
     }
 
@@ -50,12 +50,12 @@ export class Player {
         return null;
     }
 
-    // Calcula total de recursos
+    // Calculate total resources
     getTotalResources() {
         return Object.values(this.resources).reduce((sum, val) => sum + val, 0);
     }
 
-    // Gasta recursos para título nobre
+    // Spend resources for noble title
     spendResources(amount) {
         let remaining = amount;
         for (const key of Object.keys(this.resources)) {
@@ -67,7 +67,7 @@ export class Player {
         return remaining === 0;
     }
 
-    // Sobe de título
+    // Promote to next title
     promoteTitle() {
         const currentIndex = NOBLE_TITLES.indexOf(this.title);
         if (currentIndex < NOBLE_TITLES.length - 1) {
@@ -77,12 +77,12 @@ export class Player {
         return false;
     }
 
-    // Retorna nome do título em português
+    // Return title display name
     getTitleName() {
         return TITLE_NAMES[this.title] || this.title;
     }
 
-    // Adiciona pontos de vitória
+    // Add victory points
     addVictoryPoints(points) {
         this.victoryPoints += points;
     }

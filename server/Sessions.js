@@ -670,7 +670,7 @@ export class Sessions {
         const player = session.players[socket.id];
         const textureType = texture.replace(".png", "");
 
-        // Validação: é o turno do jogador?
+        // Validation: is it the player's turn?
         if (session.playerOnTurn !== player) {
             return { success: false, error: 'NOT_YOUR_TURN', message: 'Not your turn!' };
         }
