@@ -4,7 +4,7 @@ import { Server as SocketIO } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Sessions } from './Sessions.js'; 
-import { handleSocketEvents } from './serverSocketEvents.js';
+import { handleSocketEvents } from './ServerSocketEvents.js';
 import { config } from './config.js';
 
 const __filename = fileURLToPath(import.meta.url);
