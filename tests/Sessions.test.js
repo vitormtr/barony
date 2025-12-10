@@ -284,25 +284,25 @@ describe('Sessions', () => {
   });
 
   describe('calculateFinalScore', () => {
-    test('should calculate score correctly', () => {
+    test('should calculate score correctly (VP + resources only)', () => {
       const player = sessions.session[sessions.createSession(mockSocket, mockIo)].players['socket1'];
       player.victoryPoints = 20;
+      // field=5pts, forest=3pts, mountain=2pts, plain=4pts
       player.resources = { field: 5, forest: 3, mountain: 2, plain: 5 };
-      player.title = 'count';
 
       const score = sessions.calculateFinalScore(player);
-      // 20 VP + 58 resources (5*5 + 3*3 + 2*2 + 5*4) + 10 (count title) = 88
-      expect(score).toBe(88);
+      // 20 VP + (5*5 + 3*3 + 2*2 + 5*4) = 20 + 58 = 78
+      expect(score).toBe(78);
     });
 
-    test('should give 25 points for duke title', () => {
+    test('should not give points for title (only VP + resources)', () => {
       const player = sessions.session[sessions.createSession(mockSocket, mockIo)].players['socket1'];
       player.victoryPoints = 0;
       player.resources = { field: 0, forest: 0, mountain: 0, plain: 0 };
       player.title = 'duke';
 
       const score = sessions.calculateFinalScore(player);
-      expect(score).toBe(25);
+      expect(score).toBe(0); // No VP, no resources = 0 points
     });
   });
 });

@@ -36,7 +36,13 @@ function createMockPlayer(id, color, overrides = {}) {
             return null;
         },
         getTotalResources() {
-            return Object.values(this.resources).reduce((sum, v) => sum + v, 0);
+            // field=5pts, forest=3pts, mountain=2pts, plain=4pts
+            const values = { field: 5, forest: 3, mountain: 2, plain: 4 };
+            let total = 0;
+            for (const [resource, count] of Object.entries(this.resources)) {
+                total += count * (values[resource] || 0);
+            }
+            return total;
         },
         spendResources(amount) {
             let remaining = amount;
@@ -617,22 +623,22 @@ describe('BattleActions', () => {
     describe('calculateFinalScore', () => {
         it('should calculate score correctly', () => {
             player.victoryPoints = 20;
+            // field=5pts, forest=3pts, mountain=2pts, plain=4pts
             player.resources = { field: 2, forest: 3, mountain: 1, plain: 0 };
-            player.title = 'count';
 
             const score = calculateFinalScore(player);
 
-            // 20 VP + 6 resources + 10 (count) = 36
-            expect(score).toBe(36);
+            // 20 VP + (2*5 + 3*3 + 1*2) = 20 + 21 = 41
+            expect(score).toBe(41);
         });
 
-        it('should give 25 points for duke', () => {
+        it('should not give points for title (only VP + resources)', () => {
             player.victoryPoints = 0;
             player.resources = { field: 0, forest: 0, mountain: 0, plain: 0 };
             player.title = 'duke';
 
             const score = calculateFinalScore(player);
-            expect(score).toBe(25);
+            expect(score).toBe(0); // No VP, no resources = 0 points
         });
     });
 

@@ -400,20 +400,12 @@ export function executeNobleTitle(boardState, player, payload, players) {
 
 /**
  * Calculate player's final score
+ * Official rules: Victory Points + unused Resource points
+ * (VP already includes 10 points per city built)
  */
 export function calculateFinalScore(player) {
     let score = player.victoryPoints;
     score += player.getTotalResources();
-
-    const titlePoints = {
-        baron: 0,
-        viscount: 5,
-        count: 10,
-        marquis: 15,
-        duke: 25
-    };
-    score += titlePoints[player.title] || 0;
-
     return score;
 }
 

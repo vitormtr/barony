@@ -296,12 +296,12 @@ describe('Full 4-Player Game Simulation', () => {
       const player = session.players['player1'];
 
       player.victoryPoints = 30;  // 3 new cities
+      // field=5pts, forest=3pts, mountain=2pts, plain=4pts
       player.resources = { field: 5, forest: 3, mountain: 2, plain: 5 };
-      player.title = 'marquis';  // 15 points
 
       const score = sessions.calculateFinalScore(player);
-      // 30 VP + 58 resources (5*5 + 3*3 + 2*2 + 5*4) + 15 (marquis) = 103
-      expect(score).toBe(103);
+      // 30 VP + (5*5 + 3*3 + 2*2 + 5*4) = 30 + 58 = 88
+      expect(score).toBe(88);
     });
   });
 

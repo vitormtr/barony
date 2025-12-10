@@ -12,6 +12,7 @@ import {
 } from './ClientSocketEvents.js';
 import { showRoomInfo } from './roomInfo.js';
 import { hideMenu } from './home-menu.js';
+import { hasLocalSave, getLocalSaveInfo, uploadSave, loadFromLocal } from './localSave.js';
 
 let saveLoadModal = null;
 let colorSelectModal = null;
@@ -48,11 +49,68 @@ export function initSaveLoadMenu() {
       <span>or</span>
     </div>
     <button id="loadGameBtn" class="load-game-btn">Load Saved Game</button>
+    <button id="uploadLocalSaveBtn" class="upload-local-btn">Upload Save File</button>
   `;
 
   menuContainer.appendChild(loadSection);
 
   document.getElementById('loadGameBtn').addEventListener('click', showLoadGameModal);
+  document.getElementById('uploadLocalSaveBtn').addEventListener('click', handleUploadLocalSave);
+}
+
+// Handle upload of local save file
+function handleUploadLocalSave() {
+  uploadSave((saveData) => {
+    if (saveData && saveData.gameState) {
+      showLocalSavePreview(saveData);
+    }
+  });
+}
+
+// Show preview of uploaded local save
+function showLocalSavePreview(saveData) {
+  const modal = document.createElement('div');
+  modal.id = 'local-save-preview-modal';
+  modal.className = 'modal-overlay';
+
+  const gameState = saveData.gameState;
+  const date = new Date(saveData.savedAt);
+  const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  const playerColors = gameState.players?.map(p => p.color) || [];
+  const colorsHtml = playerColors.map(c =>
+    `<span class="save-color save-color-${c}"></span>`
+  ).join('');
+
+  modal.innerHTML = `
+    <div class="modal-content save-load-modal">
+      <h2>Uploaded Save File</h2>
+      <div class="local-save-info">
+        <p><strong>Saved:</strong> ${dateStr}</p>
+        <p><strong>Phase:</strong> ${gameState.gamePhase || 'Unknown'}</p>
+        <p><strong>Players:</strong> ${colorsHtml}</p>
+        <p class="save-warning">To restore this game, you need to create a new room and have all players join with the same colors.</p>
+      </div>
+      <div class="modal-buttons">
+        <button class="modal-btn confirm" id="restore-local-save">Create Room & Restore</button>
+        <button class="modal-btn cancel" id="cancel-local-restore">Cancel</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  document.getElementById('restore-local-save').addEventListener('click', () => {
+    modal.remove();
+    alert('Para restaurar o jogo:\\n\\n1. Crie uma nova sala\\n2. Compartilhe o codigo com seus amigos\\n3. Cada jogador deve escolher a mesma cor que tinha antes\\n4. O servidor vai sincronizar o estado do jogo\\n\\nO save local foi armazenado no seu navegador.');
+  });
+
+  document.getElementById('cancel-local-restore').addEventListener('click', () => {
+    modal.remove();
+  });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
 }
 
 // Show modal to load a saved game

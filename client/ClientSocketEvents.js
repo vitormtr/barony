@@ -4,7 +4,7 @@ import { createPlayersElement } from './PlayerInterface.js';
 import { CONFIG } from './config.js';
 import { showError, showWarning, showInfo, showSuccess } from './notifications.js';
 import { updateTurnIndicator, setLocalPlayer } from './turnIndicator.js';
-import { showRoomInfo } from './roomInfo.js';
+import { showRoomInfo, getRoomId } from './roomInfo.js';
 import { setLeader, disableDistributionButton, enableDistributionButton, showSaveButton, hideSaveButton } from './leaderControls.js';
 import {
   setPhase,
@@ -22,6 +22,7 @@ import {
 import { showPlayerColor } from './playerColorIndicator.js';
 import { initBattlePhase, onTurnChanged as actionMenuTurnChanged, hideActionMenu } from './actionMenu.js';
 import { createTitleCard, updateTitleCard, removeTitleCard } from './titleCard.js';
+import { saveToLocal, startAutoSave, updateGameState, addLocalSaveButtons } from './localSave.js';
 
 export const socket = io();
 export let player = null;
@@ -128,15 +129,42 @@ function handleSocketConnect() {
   tryReconnect();
 }
 
+// Store latest game state for local save
+let latestBoardState = null;
+let latestPlayers = null;
+let latestGamePhase = null;
+let latestTurnData = null;
+
 function handleBoardUpdate(boardState) {
   console.log('Board update received');
   updateBoard(boardState);
+  latestBoardState = boardState;
+  saveGameStateLocally();
 }
 
 function handleBoardCreation(boardState) {
   console.log('Starting board creation');
   createBoard(boardState);
   hideMenu();
+  latestBoardState = boardState;
+  saveGameStateLocally();
+}
+
+// Save current game state to localStorage
+function saveGameStateLocally() {
+  if (!latestBoardState) return;
+
+  const gameState = {
+    roomId: getRoomId(),
+    boardState: latestBoardState,
+    players: latestPlayers,
+    gamePhase: latestGamePhase,
+    currentTurn: latestTurnData,
+    localPlayerColor: player?.color
+  };
+
+  saveToLocal(gameState);
+  updateGameState(gameState);
 }
 
 function handlePlayersDraw(players) {
@@ -145,6 +173,8 @@ function handlePlayersDraw(players) {
   // Handle both array and object formats
   const playersArray = Array.isArray(players) ? players : Object.values(players);
   createPlayersElement(playersArray);
+  latestPlayers = playersArray;
+  saveGameStateLocally();
 
   // Update local player data if present in the list
   if (player) {
@@ -216,6 +246,8 @@ function handleTurnChanged(turnData) {
   updateTurnIndicator(turnData);
   // Notify action menu about turn change
   actionMenuTurnChanged();
+  latestTurnData = turnData;
+  saveGameStateLocally();
 }
 
 function handlePlayerDisconnected(data) {
@@ -226,12 +258,17 @@ function handlePlayerDisconnected(data) {
 function handlePhaseChanged(data) {
   console.log('Phase changed:', data);
   setPhase(data.phase);
+  latestGamePhase = data.phase;
+  saveGameStateLocally();
 
   if (data.phase === 'initialPlacement') {
     if (data.step) setPlacementStep(data.step);
     showInfo('Initial placement phase!');
   } else if (data.phase === 'battle') {
     showInfo('Placement phase complete! Starting battle phase...');
+    // Start auto-save and add download button when battle phase starts
+    startAutoSave();
+    addLocalSaveButtons();
   }
 }
 
@@ -338,11 +375,15 @@ function handleInitialPlacementUpdate(data) {
 function handleInitialPlacementComplete(data) {
   console.log('Initial placement complete:', data);
   setPhase('battle');
+  latestGamePhase = 'battle';
   showSuccess(data.message);
   // Start battle phase with action menu and title card
   setTimeout(() => {
     initBattlePhase();
     createTitleCard();
+    // Start auto-save and add download button
+    startAutoSave();
+    addLocalSaveButtons();
   }, 500);
 }
 
@@ -435,6 +476,7 @@ function handleRejoinSuccess(data) {
   // Handle phase-specific UI
   if (data.gamePhase === 'battle') {
     setPhase('battle');
+    latestGamePhase = 'battle';
     disableTextureMenu();
     if (data.isLeader) showSaveButton();
     setTimeout(() => {
@@ -442,6 +484,9 @@ function handleRejoinSuccess(data) {
       createTitleCard();
       // Trigger turn changed to setup action menu correctly
       actionMenuTurnChanged();
+      // Start auto-save and add download button
+      startAutoSave();
+      addLocalSaveButtons();
     }, 500);
   } else if (data.gamePhase === 'initialPlacement') {
     setPhase('initialPlacement');
@@ -587,6 +632,12 @@ function handleLoadedGameReady(data) {
   // Show save button for leader
   showSaveButton();
 
+  // Store game state for local save
+  latestBoardState = data.boardState;
+  latestPlayers = playersArray;
+  latestGamePhase = data.gamePhase;
+  latestTurnData = data.currentTurn;
+
   // Handle phase-specific UI
   if (data.gamePhase === 'battle') {
     setPhase('battle');
@@ -596,6 +647,10 @@ function handleLoadedGameReady(data) {
       createTitleCard();
       // Trigger turn changed to setup action menu correctly
       actionMenuTurnChanged();
+      // Start auto-save and add download button
+      startAutoSave();
+      addLocalSaveButtons();
+      saveGameStateLocally();
     }, 500);
   } else if (data.gamePhase === 'initialPlacement') {
     setPhase('initialPlacement');

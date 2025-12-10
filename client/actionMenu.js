@@ -20,13 +20,13 @@ const ACTIONS = {
     description: 'Add knights'
   },
   movement: {
-    name: 'Movement',
-    icon: '🏃',
+    name: 'Move',
+    icon: '🐴',
     description: 'Move knight'
   },
   construction: {
     name: 'Construction',
-    icon: '🏗️',
+    icon: '🔨',
     description: 'Build structure'
   },
   newCity: {

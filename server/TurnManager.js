@@ -126,34 +126,39 @@ export function calculateFinalScore(player) {
 
 /**
  * Calculate scores for all players
- * @param {Array} players - Array of players
- * @returns {Array} Array of score objects sorted by score
+ * @param {Array} players - Array of players (in turn order)
+ * @returns {Array} Array of score objects with turn order index
  */
 export function calculateAllScores(players) {
-    const scores = players.map(p => ({
+    const scores = players.map((p, index) => ({
         id: p.id,
         color: p.color,
         score: calculateFinalScore(p),
         title: p.getTitleName(),
         resources: p.getTotalResources(),
-        victoryPoints: p.victoryPoints
+        victoryPoints: p.victoryPoints,
+        turnOrderIndex: index
     }));
-
-    // Sort by score (highest first)
-    scores.sort((a, b) => b.score - a.score);
 
     return scores;
 }
 
 /**
  * Determine the winner from scores
- * In case of tie, winner is furthest from first player
- * (simplified: maintains current order in case of tie)
- * @param {Array} scores - Sorted array of score objects
+ * Official rules: In case of tie, winner is the tied player
+ * furthest from the first player in turn order
+ * @param {Array} scores - Array of score objects with turnOrderIndex
  * @returns {Object} Winner score object
  */
 export function determineWinner(scores) {
-    return scores[0];
+    const sorted = [...scores].sort((a, b) => {
+        if (b.score !== a.score) {
+            return b.score - a.score;
+        }
+        return b.turnOrderIndex - a.turnOrderIndex;
+    });
+
+    return sorted[0];
 }
 
 /**
@@ -168,8 +173,13 @@ export function endGame(session) {
     const scores = calculateAllScores(players);
     const winner = determineWinner(scores);
 
+    const sortedScores = [...scores].sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return b.turnOrderIndex - a.turnOrderIndex;
+    });
+
     return {
-        scores,
+        scores: sortedScores,
         winner,
         message: `Game over! ${winner.color} won with ${winner.score} points!`
     };

@@ -1,5 +1,10 @@
 {
+  "name": "barony",
+  "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server/server.mjs",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
@@ -7,7 +12,6 @@
   "dependencies": {
     "express": "^4.21.2",
     "nanoid": "^5.1.3",
-    "node": "^23.9.0",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {

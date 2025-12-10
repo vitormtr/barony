@@ -176,10 +176,12 @@ describe('TurnManager', () => {
     });
 
     describe('calculateFinalScore', () => {
-        it('should calculate score based on title', () => {
-            players[0].title = 'duke';
+        it('should calculate score based on victory points and resources', () => {
+            players[0].victoryPoints = 20;
+            // field=5pts, forest=3pts, mountain=2pts, plain=4pts
+            players[0].resources = { field: 2, forest: 0, mountain: 0, plain: 0 };
             const score = calculateFinalScore(players[0]);
-            expect(score).toBeGreaterThanOrEqual(25); // Duke is worth 25 points
+            expect(score).toBe(30); // 20 VP + 2*5 = 30
         });
 
         it('should include victory points', () => {
@@ -191,22 +193,27 @@ describe('TurnManager', () => {
 
     describe('calculateAllScores', () => {
         it('should calculate scores for all players', () => {
-            players[0].title = 'duke';
+            players[0].victoryPoints = 30;
             players[1].victoryPoints = 5;
 
             const scores = calculateAllScores(players);
 
             expect(scores.length).toBe(4);
-            expect(scores[0].score).toBeGreaterThanOrEqual(scores[1].score);
+            expect(scores[0].score).toBe(30);
+            expect(scores[1].score).toBe(5);
         });
 
-        it('should sort scores by highest first', () => {
-            players[0].title = 'baron';
-            players[1].title = 'duke';
+        it('should return scores in player order (not sorted)', () => {
+            players[0].victoryPoints = 10;
+            players[1].victoryPoints = 30;
 
             const scores = calculateAllScores(players);
 
-            expect(scores[0].id).toBe('p2'); // Duke should be first
+            // calculateAllScores returns in player order, not sorted
+            expect(scores[0].id).toBe('p1');
+            expect(scores[1].id).toBe('p2');
+            expect(scores[0].score).toBe(10);
+            expect(scores[1].score).toBe(30);
         });
     });
 
