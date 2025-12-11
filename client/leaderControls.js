@@ -36,7 +36,7 @@ function showLeaderControls() {
         [TEST] Skip to Battle
       </button>
       <button id="saveGameBtn" class="leader-btn save-btn" title="Save current game state">
-        💾 Save Game
+        Save Game
       </button>
       <button id="restartGameBtn" class="leader-btn restart-btn" title="Restart game from scratch">
         Restart Game
