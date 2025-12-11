@@ -38,7 +38,7 @@ export function createPlayersElement(players) {
     players.forEach(player => {
       const dot = document.createElement('span');
       dot.className = `player-dot player-dot-${player.color}`;
-      dot.title = player.color;
+      dot.title = player.name || capitalizeFirstLetter(player.color);
       minimizedContainer.appendChild(dot);
     });
 
@@ -102,6 +102,12 @@ function createPlayerInfo(player) {
 
 function createPlayerHeader(player) {
   const header = createElementWithClass("div", "player-header");
+
+  // Player name
+  const playerName = player.name || capitalizeFirstLetter(player.color);
+  const nameElement = createElementWithClass("span", "player-name");
+  nameElement.textContent = playerName;
+  header.appendChild(nameElement);
 
   // Title badge
   const titleBadge = createElementWithClass("span", "player-title-badge");

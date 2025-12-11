@@ -9,15 +9,20 @@ import {
 } from './constants.js';
 
 export class Player {
-    constructor(id, color, hexCount = null, pieces = null, resources = null, title = null, victoryPoints = null) {
+    constructor(id, color, name = null, hexCount = null, pieces = null, resources = null, title = null, victoryPoints = null) {
         this.id = id;
         this.color = color;
+        this.name = name || this.capitalizeFirst(color);
         this.image = `${color}player.png`;
         this.hexCount = hexCount ?? this.initializePlayerHexCount();
         this.pieces = pieces ?? this.initializePlayerPieces();
         this.resources = resources ?? this.initializeResources();
         this.title = title ?? 'baron';
         this.victoryPoints = victoryPoints ?? 0;
+    }
+
+    capitalizeFirst(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
     }
 
     updateTextures(textureUsed) {
@@ -113,6 +118,7 @@ export class Player {
         return {
           id: this.id,
           color: this.color,
+          name: this.name,
           image: this.image,
           hexCount: this.hexCount,
           pieces: this.pieces,

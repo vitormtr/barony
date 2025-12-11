@@ -113,6 +113,14 @@ export function emitCreateRoom() {
   socket.emit(CONFIG.SOCKET.EVENTS.CREATE_ROOM);
 }
 
+export function emitCreateRoomWithColor(color, playerName) {
+  socket.emit('createRoomWithColor', { color, playerName });
+}
+
+export function emitJoinRoomWithColor(roomId, color, playerName) {
+  socket.emit('joinRoomWithColor', { roomId, color, playerName });
+}
+
 export function emitUpdatePlayerTexture(texture) {
   const payload = { texture, player };
   socket.emit(CONFIG.SOCKET.EVENTS.UPDATE_PLAYER_TEXTURE, payload)

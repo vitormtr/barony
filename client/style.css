@@ -200,6 +200,7 @@ button:active {
 }
 
 /* Input */
+#playerNameInput,
 #roomIdInput {
   font-family: inherit;
   font-size: 1rem;
@@ -211,8 +212,16 @@ button:active {
   background: var(--color-surface);
   color: var(--color-text);
   text-align: center;
-  letter-spacing: 2px;
   transition: var(--transition-normal);
+}
+
+#playerNameInput {
+  margin-bottom: 15px;
+  letter-spacing: 0;
+}
+
+#roomIdInput {
+  letter-spacing: 2px;
 }
 
 #roomIdInput::placeholder {
@@ -529,6 +538,13 @@ button:active {
   gap: 6px;
   margin-bottom: 4px;
   flex-wrap: wrap;
+}
+
+.player-name {
+  font-weight: bold;
+  font-size: 0.75rem;
+  color: var(--color-text);
+  margin-right: 4px;
 }
 
 .player-title-badge {

@@ -310,6 +310,56 @@ export function handleSocketEvents(socket, io, sessionManager) {
     }
   };
 
+  // Handler to get available colors for a room
+  const handleGetAvailableColors = (roomId) => {
+    try {
+      const result = sessionManager.getAvailableColors(roomId);
+      socket.emit('availableColors', result);
+    } catch (error) {
+      handleError(error, 'getAvailableColors');
+      socket.emit('availableColors', { error: 'Failed to get available colors' });
+    }
+  };
+
+  // Handler to create room with specific color and name
+  const handleCreateRoomWithColor = (payload) => {
+    try {
+      const { color, playerName } = payload;
+      logger.info('Creating room with color', { socketId: socket.id, color, playerName });
+
+      const roomId = sessionManager.createSessionWithColor(socket, io, color, playerName);
+      const playerData = sessionManager.getPlayer(socket.id);
+
+      socket.emit('roomCreated', { roomId, player: playerData, isLeader: true });
+      io.to(roomId).emit(SOCKET_EVENTS.PLAYER_JOINED_ROOM, playerData);
+    } catch (error) {
+      handleError(error, 'createRoomWithColor', { payload });
+    }
+  };
+
+  // Handler to join room with specific color and name
+  const handleJoinRoomWithColor = (payload) => {
+    try {
+      const { roomId, color, playerName } = payload;
+      logger.info('Joining room with color', { socketId: socket.id, roomId, color, playerName });
+
+      const result = sessionManager.addPlayerWithColor(socket, io, roomId, color, playerName);
+
+      if (result.success) {
+        const players = sessionManager.getPlayersInRoom(roomId);
+        const playerData = sessionManager.getPlayer(socket.id);
+
+        socket.emit('roomJoined', { roomId, player: playerData });
+        io.to(roomId).emit(SOCKET_EVENTS.DRAW_PLAYERS, players);
+        io.to(roomId).emit(SOCKET_EVENTS.PLAYER_JOINED_ROOM, playerData);
+      } else {
+        socket.emit(SOCKET_EVENTS.ERROR, result.message);
+      }
+    } catch (error) {
+      handleError(error, 'joinRoomWithColor', { payload });
+    }
+  };
+
   socket.on(SOCKET_EVENTS.CREATE_ROOM, handleCreateRoom);
   socket.on(SOCKET_EVENTS.JOIN_ROOM, handleJoinRoom);
   socket.on(SOCKET_EVENTS.APPLY_TEXTURE, handleApplyTexture);
@@ -328,4 +378,7 @@ export function handleSocketEvents(socket, io, sessionManager) {
   socket.on('loadGame', handleLoadGame);
   socket.on('joinLoadedGame', handleJoinLoadedGame);
   socket.on('getLoadedGameInfo', handleGetLoadedGameInfo);
+  socket.on('getAvailableColors', handleGetAvailableColors);
+  socket.on('createRoomWithColor', handleCreateRoomWithColor);
+  socket.on('joinRoomWithColor', handleJoinRoomWithColor);
 }

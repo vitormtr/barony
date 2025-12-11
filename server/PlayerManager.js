@@ -62,6 +62,41 @@ export function createPlayer(socketId, session) {
 }
 
 /**
+ * Create a new player with specific color and name
+ * @param {string} socketId - The socket ID
+ * @param {string} color - The player color
+ * @param {string} name - The player name
+ * @returns {Object} New player object
+ */
+export function createPlayerWithColor(socketId, color, name = null) {
+    return new Player(socketId, color, name);
+}
+
+/**
+ * Get available colors in a session
+ * @param {Object} session - The session object
+ * @returns {Array} Array of available colors
+ */
+export function getAvailableColors(session) {
+    if (!session) {
+        return PLAYER_COLORS;
+    }
+    const usedColors = Object.values(session.players).map(player => player.color);
+    return PLAYER_COLORS.filter(color => !usedColors.includes(color));
+}
+
+/**
+ * Check if a color is available in a session
+ * @param {Object} session - The session object
+ * @param {string} color - The color to check
+ * @returns {boolean} True if available
+ */
+export function isColorAvailable(session, color) {
+    const usedColors = Object.values(session.players).map(player => player.color);
+    return !usedColors.includes(color);
+}
+
+/**
  * Check if a player can join a session
  * @param {Object} session - The session object
  * @returns {Object} Validation result with canJoin and error message

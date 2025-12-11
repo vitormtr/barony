@@ -70,6 +70,97 @@ export class Sessions {
         return session && session.leaderId === socketId;
     }
 
+    // Get available colors for a room
+    getAvailableColors(roomId) {
+        const session = this.session[roomId];
+        if (!session) {
+            return { error: 'Room not found!' };
+        }
+        if (session.lockedForEntry) {
+            return { error: 'Entry blocked! The board has already been set up.' };
+        }
+        if (session.gameStarted) {
+            return { error: 'Game already started! Cannot join.' };
+        }
+        const colors = PlayerManager.getAvailableColors(session);
+        return { colors, roomId };
+    }
+
+    // Create session with specific color
+    createSessionWithColor(socket, io, color, playerName) {
+        const roomId = nanoid(6);
+        const boardId = nanoid(10);
+        const boardState = createEmptyBoard(15, 15);
+
+        this.session[roomId] = {
+            boardId,
+            players: {},
+            boardState,
+            playerOnTurn: {},
+            gamePhase: GAME_PHASES.WAITING,
+            gameStarted: false,
+            leaderId: socket.id,
+            lockedForEntry: false,
+            initialPlacementState: {
+                round: 0,
+                turnOrder: [],
+                currentTurnIndex: 0,
+                placementStep: null,
+                knightsPlaced: 0,
+                cityPosition: null
+            }
+        };
+
+        const player = PlayerManager.createPlayerWithColor(socket.id, color, playerName);
+        this.session[roomId].players[socket.id] = player;
+        this.session[roomId].playerOnTurn = player;
+        socket.join(roomId);
+        socket.emit('createBoard', boardState);
+        console.log(`Session ${roomId} created with color ${color}! Leader: ${socket.id}`);
+        socket.emit('drawPlayers', this.session[roomId].players);
+
+        socket.emit('turnChanged', {
+            currentPlayerId: player.id,
+            currentPlayerColor: player.color
+        });
+
+        return roomId;
+    }
+
+    // Add player with specific color and name
+    addPlayerWithColor(socket, io, roomId, color, playerName) {
+        const session = this.session[roomId];
+
+        if (!session) {
+            return { success: false, message: 'Room not found!' };
+        }
+
+        // Validate
+        const validation = PlayerManager.canPlayerJoin(session);
+        if (!validation.canJoin) {
+            return { success: false, message: validation.error };
+        }
+
+        // Check if color is available
+        if (!PlayerManager.isColorAvailable(session, color)) {
+            return { success: false, message: 'This color is already taken!' };
+        }
+
+        const player = PlayerManager.createPlayerWithColor(socket.id, color, playerName);
+        session.players[socket.id] = player;
+
+        socket.join(roomId);
+        socket.emit('createBoard', session.boardState);
+        socket.emit('drawPlayers', session.players);
+
+        socket.emit('turnChanged', {
+            currentPlayerId: session.playerOnTurn.id,
+            currentPlayerColor: session.playerOnTurn.color
+        });
+
+        return { success: true, player };
+    }
+
     // Distribute textures randomly on the board
     randomDistribution(socket, io) {
         const roomId = this.getRoomIdBySocketId(socket.id);
