@@ -133,6 +133,7 @@ export function calculateAllScores(players) {
     const scores = players.map((p, index) => ({
         id: p.id,
         color: p.color,
+        name: p.name || p.color,
         score: calculateFinalScore(p),
         title: p.getTitleName(),
         resources: p.getTotalResources(),
@@ -215,7 +216,8 @@ export function getCurrentTurnInfo(session) {
 
     return {
         playerId: session.playerOnTurn.id,
-        playerColor: session.playerOnTurn.color
+        playerColor: session.playerOnTurn.color,
+        playerName: session.playerOnTurn.name || session.playerOnTurn.color
     };
 }
 

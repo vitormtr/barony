@@ -1,12 +1,5 @@
 // Module for displaying player color
 
-const COLOR_NAMES = {
-  red: 'Red',
-  blue: 'Blue',
-  green: 'Green',
-  yellow: 'Yellow'
-};
-
 const COLOR_HEX = {
   red: '#c62828',
   blue: '#1565c0',
@@ -15,20 +8,22 @@ const COLOR_HEX = {
 };
 
 let colorIndicator = null;
+let currentPlayerName = null;
 
-export function showPlayerColor(color) {
+export function showPlayerColor(color, playerName = null) {
   if (!colorIndicator) {
     colorIndicator = document.createElement('div');
     colorIndicator.id = 'player-color-indicator';
     document.body.appendChild(colorIndicator);
   }
 
-  const colorName = COLOR_NAMES[color] || color;
+  currentPlayerName = playerName;
   const colorHex = COLOR_HEX[color] || '#888';
+  const displayName = playerName || color.charAt(0).toUpperCase() + color.slice(1);
 
   colorIndicator.innerHTML = `
     <div class="color-badge" style="background: ${colorHex}"></div>
-    <span class="color-label">You are the <strong>${colorName}</strong> player</span>
+    <span class="color-label">You are <strong>${displayName}</strong></span>
   `;
 
   colorIndicator.style.display = 'flex';

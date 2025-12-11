@@ -5,13 +5,6 @@ let turnIndicator = null;
 let currentTurnPlayerId = null;
 let localPlayerId = null;
 
-const COLOR_NAMES = {
-  red: 'Red',
-  blue: 'Blue',
-  green: 'Green',
-  yellow: 'Yellow'
-};
-
 function getOrCreateTurnIndicator() {
   if (!turnIndicator) {
     turnIndicator = document.createElement('div');
@@ -27,7 +20,7 @@ export function setLocalPlayer(playerId) {
 }
 
 export function updateTurnIndicator(turnData) {
-  const { currentPlayerId, currentPlayerColor } = turnData;
+  const { currentPlayerId, currentPlayerColor, currentPlayerName } = turnData;
   currentTurnPlayerId = currentPlayerId;
 
   const indicator = getOrCreateTurnIndicator();
@@ -39,12 +32,15 @@ export function updateTurnIndicator(turnData) {
   // Add current color class
   indicator.classList.add(currentPlayerColor);
 
+  // Use player name if available, otherwise capitalize color
+  const displayName = currentPlayerName || currentPlayerColor.charAt(0).toUpperCase() + currentPlayerColor.slice(1);
+
   if (isYourTurn) {
     indicator.classList.add('your-turn');
     indicator.textContent = '🎯 Your turn!';
     showInfo('It\'s your turn to play!');
   } else {
-    indicator.textContent = `${COLOR_NAMES[currentPlayerColor] || currentPlayerColor}'s turn`;
+    indicator.textContent = `${displayName}'s turn`;
   }
 
   // Update highlight in HUD

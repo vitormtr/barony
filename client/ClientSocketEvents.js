@@ -1,5 +1,4 @@
 import { createBoard, updateBoard } from './BoardRender.js';
-import { hideMenu } from './home-menu.js';
 import { createPlayersElement } from './PlayerInterface.js';
 import { CONFIG } from './config.js';
 import { showError, showWarning, showInfo, showSuccess } from './notifications.js';
@@ -26,6 +25,20 @@ import { saveToLocal, startAutoSave, updateGameState, addLocalSaveButtons } from
 
 export const socket = io();
 export let player = null;
+
+// Getter function for socket (avoids circular dependency issues)
+export function getSocket() {
+  return socket;
+}
+
+// Local hideMenu function to avoid circular dependency with home-menu.js
+function hideMenu() {
+  const logoMenuContainer = document.getElementById('logoMenuContainer');
+  if (logoMenuContainer) {
+    logoMenuContainer.style.display = 'none';
+  }
+  document.body.style.backgroundImage = 'none';
+}
 
 // Getter function to always get the current player reference
 export function getPlayer() {
@@ -221,6 +234,16 @@ function getTitleName(title) {
   return titles[title?.toLowerCase()] || 'Baron';
 }
 
+function getColorHex(color) {
+  const colors = {
+    red: '#c62828',
+    blue: '#1565c0',
+    green: '#2e7d32',
+    yellow: '#f9a825'
+  };
+  return colors[color] || '#888';
+}
+
 function handlePlayerJoinedRoom(currentPlayer) {
   // This event is emitted to ALL players when someone joins
   // Only update if it's the player themselves (and player not defined yet)
@@ -260,7 +283,8 @@ function handleTurnChanged(turnData) {
 
 function handlePlayerDisconnected(data) {
   console.log('Player disconnected:', data);
-  showWarning(`Player ${data.playerColor} disconnected.`);
+  const displayName = data.playerName || data.playerColor;
+  showWarning(`${displayName} disconnected.`);
 }
 
 function handlePhaseChanged(data) {
@@ -282,6 +306,7 @@ function handlePhaseChanged(data) {
 
 function handleRoomCreated(data) {
   console.log('Room created:', data.roomId);
+  hideMenu();
   showRoomInfo(data.roomId);
   showSuccess(`Room ${data.roomId} created! Share the code.`);
 
@@ -294,7 +319,7 @@ function handleRoomCreated(data) {
   if (data.player) {
     player = data.player;
     setLocalPlayer(data.player.id);
-    showPlayerColor(data.player.color);
+    showPlayerColor(data.player.color, data.player.name);
     // Save session for reconnection
     saveSession(data.roomId, data.player.color);
   }
@@ -302,6 +327,7 @@ function handleRoomCreated(data) {
 
 function handleRoomJoined(data) {
   console.log('Joined room:', data.roomId);
+  hideMenu();
   showRoomInfo(data.roomId);
   showSuccess(`You joined room ${data.roomId}!`);
   // Joiners are not leaders
@@ -311,7 +337,7 @@ function handleRoomJoined(data) {
   if (data.player) {
     player = data.player;
     setLocalPlayer(data.player.id);
-    showPlayerColor(data.player.color);
+    showPlayerColor(data.player.color, data.player.name);
     // Save session for reconnection
     saveSession(data.roomId, data.player.color);
   }
@@ -432,17 +458,20 @@ function showGameEndScreen(data) {
   const scoresHtml = data.scores.map((s, i) => `
     <div class="score-row ${i === 0 ? 'winner' : ''}">
       <span class="rank">#${i + 1}</span>
-      <span class="color" style="background: ${s.color}"></span>
+      <span class="color-dot" style="background: ${getColorHex(s.color)}"></span>
+      <span class="player-name">${s.name || s.color}</span>
       <span class="title">${s.title}</span>
       <span class="points">${s.score} pts</span>
       <span class="details">(${s.victoryPoints} VP + ${s.resources} resources)</span>
     </div>
   `).join('');
 
+  const winnerName = data.winner.name || data.winner.color;
+
   screen.innerHTML = `
     <div class="game-end-content">
       <h1>🏆 Game Over!</h1>
-      <h2>${data.winner.color} won!</h2>
+      <h2>${winnerName} won!</h2>
       <div class="scores-list">
         ${scoresHtml}
       </div>
@@ -465,7 +494,7 @@ function handleRejoinSuccess(data) {
   // Update player data
   player = data.player;
   setLocalPlayer(data.player.id);
-  showPlayerColor(data.player.color);
+  showPlayerColor(data.player.color, data.player.name);
 
   // Show room info
   showRoomInfo(data.roomId);
@@ -578,7 +607,7 @@ function handleJoinedLoadedGame(result) {
   if (result.success) {
     player = result.player;
     setLocalPlayer(result.player.id);
-    showPlayerColor(result.player.color);
+    showPlayerColor(result.player.color, result.player.name);
     setLeader(result.isLeader);
 
     if (onJoinedLoadedGameCallback) {

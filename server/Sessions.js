@@ -58,7 +58,8 @@ export class Sessions {
         // Send initial turn info
         socket.emit('turnChanged', {
             currentPlayerId: player.id,
-            currentPlayerColor: player.color
+            currentPlayerColor: player.color,
+            currentPlayerName: player.name || player.color
         });
 
         return roomId;
@@ -121,7 +122,8 @@ export class Sessions {
 
         socket.emit('turnChanged', {
             currentPlayerId: player.id,
-            currentPlayerColor: player.color
+            currentPlayerColor: player.color,
+            currentPlayerName: player.name || player.color
         });
 
         return roomId;
@@ -155,7 +157,8 @@ export class Sessions {
 
         socket.emit('turnChanged', {
             currentPlayerId: session.playerOnTurn.id,
-            currentPlayerColor: session.playerOnTurn.color
+            currentPlayerColor: session.playerOnTurn.color,
+            currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
         });
 
         return { success: true, player };
@@ -253,7 +256,8 @@ export class Sessions {
         });
         io.to(roomId).emit('turnChanged', {
             currentPlayerId: session.playerOnTurn.id,
-            currentPlayerColor: session.playerOnTurn.color
+            currentPlayerColor: session.playerOnTurn.color,
+            currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
         });
 
         console.log(`[TEST] Skip to battle phase in room ${roomId}`);
@@ -282,7 +286,8 @@ export class Sessions {
             currentStep: 'city',
             citiesRemaining: firstTurn.citiesToPlace,
             currentPlayerId: session.playerOnTurn.id,
-            currentPlayerColor: session.playerOnTurn.color
+            currentPlayerColor: session.playerOnTurn.color,
+            currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
         });
 
         console.log(`Initial placement phase started in room ${roomId}`);
@@ -334,7 +339,8 @@ export class Sessions {
             session.playerOnTurn = session.players[advanceResult.nextPlayerId];
             io.to(roomId).emit('turnChanged', {
                 currentPlayerId: session.playerOnTurn.id,
-                currentPlayerColor: session.playerOnTurn.color
+                currentPlayerColor: session.playerOnTurn.color,
+                currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
             });
             io.to(roomId).emit('initialPlacementUpdate', {
                 message: `Your turn! Place ${advanceResult.citiesRemaining} city(ies).`,
@@ -365,7 +371,8 @@ export class Sessions {
         io.to(roomId).emit('phaseChanged', { phase: 'battle' });
         io.to(roomId).emit('turnChanged', {
             currentPlayerId: session.playerOnTurn.id,
-            currentPlayerColor: session.playerOnTurn.color
+            currentPlayerColor: session.playerOnTurn.color,
+            currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
         });
         io.to(roomId).emit('initialPlacementComplete', {
             message: 'Initial placement complete! Starting battle phase!'
@@ -557,7 +564,8 @@ export class Sessions {
         // Emit turn change
         io.to(roomId).emit('turnChanged', {
             currentPlayerId: result.turnInfo.playerId,
-            currentPlayerColor: result.turnInfo.playerColor
+            currentPlayerColor: result.turnInfo.playerColor,
+            currentPlayerName: result.turnInfo.playerName || result.turnInfo.playerColor
         });
 
         io.to(roomId).emit('drawPlayers', Object.values(session.players));
@@ -660,7 +668,8 @@ export class Sessions {
         io.to(roomId).emit('drawPlayers', players);
         io.to(roomId).emit('turnChanged', {
             currentPlayerId: session.playerOnTurn.id,
-            currentPlayerColor: session.playerOnTurn.color
+            currentPlayerColor: session.playerOnTurn.color,
+            currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
         });
 
         console.log(`Game restarted in room ${roomId}`);
@@ -711,7 +720,8 @@ export class Sessions {
         // Send info about whose turn it is
         socket.emit('turnChanged', {
             currentPlayerId: session.playerOnTurn.id,
-            currentPlayerColor: session.playerOnTurn.color
+            currentPlayerColor: session.playerOnTurn.color,
+            currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
         });
     }
 
@@ -732,7 +742,8 @@ export class Sessions {
             // Notify other players
             io.to(roomId).emit('playerDisconnected', {
                 playerId: socket.id,
-                playerColor: disconnectedPlayer.color
+                playerColor: disconnectedPlayer.color,
+                playerName: disconnectedPlayer.name || disconnectedPlayer.color
             });
             return; // Don't remove the player, allow reconnection
         }
@@ -760,7 +771,8 @@ export class Sessions {
 
             io.to(roomId).emit('turnChanged', {
                 currentPlayerId: session.playerOnTurn.id,
-                currentPlayerColor: session.playerOnTurn.color
+                currentPlayerColor: session.playerOnTurn.color,
+                currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
             });
 
             console.log(`Turn passed to ${session.playerOnTurn.color} after disconnection`);
@@ -778,6 +790,7 @@ export class Sessions {
         io.to(roomId).emit('playerDisconnected', {
             playerId: socket.id,
             playerColor: disconnectedPlayer.color,
+            playerName: disconnectedPlayer.name || disconnectedPlayer.color,
             remainingPlayers: remainingPlayers.length
         });
 
@@ -848,7 +861,8 @@ export class Sessions {
         // Emit turn change event
         io.to(roomId).emit('turnChanged', {
             currentPlayerId: session.playerOnTurn.id,
-            currentPlayerColor: session.playerOnTurn.color
+            currentPlayerColor: session.playerOnTurn.color,
+            currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
         });
 
         // Check if placement phase ended

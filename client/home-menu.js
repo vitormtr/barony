@@ -1,4 +1,4 @@
-import { emitCreateRoom, emitJoinRoom, emitCreateRoomWithColor, emitJoinRoomWithColor, socket } from './ClientSocketEvents.js';
+import { emitCreateRoom, emitJoinRoom, emitCreateRoomWithColor, emitJoinRoomWithColor, getSocket } from './ClientSocketEvents.js';
 import { CONFIG } from './config.js';
 import { domHelper } from './domUtils.js';
 
@@ -20,13 +20,13 @@ function initializeMenu() {
 }
 
 function setupEventListeners() {
-  domHelper.onClick(createRoomBtn, handleCreateRoom);
-  domHelper.onClick(joinRoomBtn, handleJoinRoom);
+  domHelper.onClick(elements.createRoomBtn, handleCreateRoom);
+  domHelper.onClick(elements.joinRoomBtn, handleJoinRoom);
 }
 
 function setupSocketListeners() {
   // Listen for available colors when joining/creating
-  socket.on('availableColors', handleAvailableColors);
+  getSocket().on('availableColors', handleAvailableColors);
 }
 
 function getPlayerName() {
@@ -35,6 +35,7 @@ function getPlayerName() {
 }
 
 function handleCreateRoom() {
+  console.log('handleCreateRoom called');
   pendingAction = 'create';
   pendingRoomId = null;
   // Request available colors (all 4 for new room)
@@ -47,7 +48,7 @@ function handleJoinRoom() {
     pendingAction = 'join';
     pendingRoomId = roomId;
     // Request available colors from server
-    socket.emit('getAvailableColors', roomId);
+    getSocket().emit('getAvailableColors', roomId);
   }
 }
 
@@ -111,12 +112,16 @@ function showColorSelectModal(colors, roomId) {
 }
 
 function handleColorSelected(color) {
+  console.log('handleColorSelected called with color:', color);
   const playerName = getPlayerName();
+  console.log('playerName:', playerName);
   closeColorSelectModal();
 
   if (pendingAction === 'create') {
+    console.log('Emitting createRoomWithColor');
     emitCreateRoomWithColor(color, playerName);
   } else if (pendingAction === 'join' && pendingRoomId) {
+    console.log('Emitting joinRoomWithColor');
     emitJoinRoomWithColor(pendingRoomId, color, playerName);
   }
 
@@ -136,14 +141,10 @@ function capitalizeFirst(str) {
 }
 
 export function hideMenu() {
-  setElementsVisibility([
-    elements.createRoomBtn,
-    elements.joinRoomBtn,
-    elements.roomIdInput,
-    elements.playerNameInput,
-    elements.menu
-  ], 'none');
-
+  const logoMenuContainer = document.getElementById('logoMenuContainer');
+  if (logoMenuContainer) {
+    logoMenuContainer.style.display = 'none';
+  }
   document.body.style.backgroundImage = 'none';
 }
 
