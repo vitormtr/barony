@@ -2469,6 +2469,10 @@ button:active {
   text-align: center;
 }
 
+.color-select-modal .modal-buttons {
+  margin-top: 20px;
+}
+
 .color-hint {
   font-size: 0.85rem;
   color: var(--color-text-muted);
