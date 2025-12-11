@@ -21,19 +21,44 @@ import * as BoardLogic from './BoardLogic.js';
  * @returns {Array} Placement sequence with playerId and citiesToPlace
  */
 export function createPlacementSequence(playerIds) {
-    if (playerIds.length !== 4) {
-        throw new Error('Barony requires exactly 4 players');
+    if (playerIds.length < 1 || playerIds.length > 4) {
+        throw new Error('Barony requires 1-4 players');
     }
 
-    return [
-        { playerId: playerIds[0], citiesToPlace: 1 },
-        { playerId: playerIds[1], citiesToPlace: 1 },
-        { playerId: playerIds[2], citiesToPlace: 1 },
-        { playerId: playerIds[3], citiesToPlace: 3 },
-        { playerId: playerIds[2], citiesToPlace: 2 },
-        { playerId: playerIds[1], citiesToPlace: 2 },
-        { playerId: playerIds[0], citiesToPlace: 2 },
-    ];
+    // Dynamic placement sequence based on number of players
+    // Each player places 3 cities total, distributed across turns
+    const numPlayers = playerIds.length;
+    const sequence = [];
+
+    if (numPlayers === 1) {
+        // Single player: place all 3 cities at once
+        sequence.push({ playerId: playerIds[0], citiesToPlace: 3 });
+    } else if (numPlayers === 2) {
+        // 2 players: alternate placing cities
+        sequence.push({ playerId: playerIds[0], citiesToPlace: 1 });
+        sequence.push({ playerId: playerIds[1], citiesToPlace: 2 });
+        sequence.push({ playerId: playerIds[0], citiesToPlace: 2 });
+        sequence.push({ playerId: playerIds[1], citiesToPlace: 1 });
+    } else if (numPlayers === 3) {
+        // 3 players: snake draft style
+        sequence.push({ playerId: playerIds[0], citiesToPlace: 1 });
+        sequence.push({ playerId: playerIds[1], citiesToPlace: 1 });
+        sequence.push({ playerId: playerIds[2], citiesToPlace: 2 });
+        sequence.push({ playerId: playerIds[1], citiesToPlace: 2 });
+        sequence.push({ playerId: playerIds[0], citiesToPlace: 2 });
+        sequence.push({ playerId: playerIds[2], citiesToPlace: 1 });
+    } else {
+        // 4 players: original sequence
+        sequence.push({ playerId: playerIds[0], citiesToPlace: 1 });
+        sequence.push({ playerId: playerIds[1], citiesToPlace: 1 });
+        sequence.push({ playerId: playerIds[2], citiesToPlace: 1 });
+        sequence.push({ playerId: playerIds[3], citiesToPlace: 3 });
+        sequence.push({ playerId: playerIds[2], citiesToPlace: 2 });
+        sequence.push({ playerId: playerIds[1], citiesToPlace: 2 });
+        sequence.push({ playerId: playerIds[0], citiesToPlace: 2 });
+    }
+
+    return sequence;
 }
 
 /**

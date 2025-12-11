@@ -184,8 +184,8 @@ export class Sessions {
         }
 
         const players = Object.values(session.players);
-        if (players.length < 4) {
-            return { success: false, message: '4 players required to start the game!' };
+        if (players.length < 1) {
+            return { success: false, message: 'At least 1 player required to start the game!' };
         }
 
         // Block new player entries
@@ -227,8 +227,8 @@ export class Sessions {
         }
 
         const players = Object.values(session.players);
-        if (players.length < 2) {
-            return { success: false, message: 'Need at least 2 players!' };
+        if (players.length < 1) {
+            return { success: false, message: 'Need at least 1 player!' };
         }
 
         // First do texture distribution if not done yet
@@ -807,10 +807,10 @@ export class Sessions {
             return { success: false, error: 'ROOM_NOT_FOUND', message: 'Room not found!' };
         }
 
-        // Block manual texture placement - only leader can distribute when there are 4 players
+        // Block manual texture placement - only leader can distribute when there is at least 1 player
         const players = Object.values(session.players);
-        if (players.length < 4) {
-            return { success: false, error: 'NOT_ENOUGH_PLAYERS', message: 'Wait for 4 players to start!' };
+        if (players.length < 1) {
+            return { success: false, error: 'NOT_ENOUGH_PLAYERS', message: 'Need at least 1 player to start!' };
         }
 
         const { row, col, texture } = payload;
