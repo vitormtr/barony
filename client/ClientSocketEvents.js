@@ -159,7 +159,8 @@ let latestTurnData = null;
 function handleBoardUpdate(boardState) {
   console.log('Board update received');
   updateBoard(boardState);
-  latestBoardState = boardState;
+  // boardState from server is { boardState: [...] }, extract the array
+  latestBoardState = boardState.boardState || boardState;
   saveGameStateLocally();
 }
 
@@ -167,7 +168,8 @@ function handleBoardCreation(boardState) {
   console.log('Starting board creation');
   createBoard(boardState);
   hideMenu();
-  latestBoardState = boardState;
+  // boardState may be an array directly or { boardState: [...] }
+  latestBoardState = Array.isArray(boardState) ? boardState : (boardState.boardState || boardState);
   saveGameStateLocally();
 }
 
@@ -738,6 +740,10 @@ export function emitListSaves() {
 
 export function emitLoadGame(filename) {
   socket.emit('loadGame', filename);
+}
+
+export function emitLoadLocalSave(saveData) {
+  socket.emit('loadLocalSave', saveData);
 }
 
 export function emitJoinLoadedGame(roomId, color) {

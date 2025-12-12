@@ -604,6 +604,22 @@ export class Sessions {
         }
     }
 
+    // Ensure all pieces have color property (for backwards compatibility with old saves)
+    ensurePiecesHaveColor(boardState, playerIdToColor) {
+        for (const row of boardState) {
+            for (const hex of row) {
+                if (hex.pieces) {
+                    for (const piece of hex.pieces) {
+                        // If piece has owner but no color, derive color from owner
+                        if (piece.owner && !piece.color) {
+                            piece.color = playerIdToColor[piece.owner] || null;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     isAdjacentToPosition(row1, col1, row2, col2) {
         return BoardLogic.isAdjacentToPosition(row1, col1, row2, col2);
     }
@@ -1050,6 +1066,104 @@ export class Sessions {
             gamePhase: saveData.gamePhase,
             savedAt: saveData.savedAt,
             boardState: saveData.boardState
+        };
+    }
+
+    // Load a game from local save data (uploaded from client)
+    loadLocalSave(socket, io, saveData) {
+        // Validate save data
+        if (!saveData || !saveData.gameState) {
+            return { success: false, message: 'Invalid save data!' };
+        }
+
+        const gameState = saveData.gameState;
+
+        // boardState may be nested { boardState: [...] } or just [...]
+        let boardState = gameState.boardState;
+        if (boardState && boardState.boardState && Array.isArray(boardState.boardState)) {
+            boardState = boardState.boardState;
+        }
+
+        if (!boardState || !gameState.players) {
+            return { success: false, message: 'Save data is missing required fields!' };
+        }
+
+        // Create new room with loaded data
+        const roomId = nanoid(6);
+        const boardId = nanoid(10);
+
+        // Reconstruct players as Player instances
+        const players = {};
+        const playersArray = Array.isArray(gameState.players) ? gameState.players : Object.values(gameState.players);
+
+        for (const playerData of playersArray) {
+            const player = new Player(
+                playerData.id || nanoid(10), // Keep original ID temporarily
+                playerData.color,
+                playerData.name || null,     // name
+                playerData.hexCount || null, // hexCount
+                playerData.pieces || null,   // pieces
+                playerData.resources || null, // resources
+                playerData.title || null,    // title
+                playerData.victoryPoints || 0 // victoryPoints
+            );
+            players[player.id] = player;
+        }
+
+        // Get player colors
+        const availableColors = playersArray.map(p => p.color);
+
+        // Build a map of player ID to color
+        const playerIdToColor = {};
+        for (const playerData of playersArray) {
+            playerIdToColor[playerData.id] = playerData.color;
+        }
+
+        // Ensure all pieces have color property (some old saves might have only owner)
+        this.ensurePiecesHaveColor(boardState, playerIdToColor);
+
+        // Determine current turn color
+        let playerOnTurnColor = null;
+        if (gameState.currentTurn?.currentPlayerColor) {
+            playerOnTurnColor = gameState.currentTurn.currentPlayerColor;
+        }
+
+        // Create session
+        this.session[roomId] = {
+            boardId,
+            players,
+            boardState: boardState,
+            playerOnTurn: null, // Will be set after player mapping
+            gamePhase: gameState.gamePhase || 'battle',
+            gameStarted: true,
+            leaderId: socket.id,
+            lockedForEntry: true, // Loaded games are locked
+            initialPlacementState: {
+                round: 0,
+                turnOrder: [],
+                currentTurnIndex: 0,
+                placementStep: null,
+                knightsPlaced: 0,
+                cityPosition: null
+            },
+            // Game ending state
+            gameEnding: false,
+            dukePlayerId: null,
+            finalRoundStartPlayerId: null,
+            // Track which colors need to be claimed
+            loadedGame: true,
+            availableColors,
+            playerOnTurnColor
+        };
+
+        console.log(`Local save loaded into room ${roomId}`);
+
+        return {
+            success: true,
+            roomId,
+            playerColors: availableColors,
+            gamePhase: gameState.gamePhase || 'battle',
+            boardState: boardState
         };
     }
 

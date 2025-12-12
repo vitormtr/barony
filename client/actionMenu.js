@@ -168,7 +168,7 @@ function getAvailableActions(hexData) {
 
 // Show context menu on clicked hex
 function showContextMenu(hex, hexData) {
-  hideContextMenu();
+  hideAllMenus();
 
   console.log('showContextMenu - hexData:', hexData);
   console.log('showContextMenu - player:', player);
@@ -228,6 +228,15 @@ function hideContextMenu() {
   document.removeEventListener('click', handleClickOutside);
 }
 
+// Hide all action menus (context menu, recruitment, construction, knight selection, noble title)
+function hideAllMenus() {
+  hideContextMenu();
+  // Remove any other menus that might be open
+  document.querySelectorAll('.knight-selection-menu, .construction-menu, .noble-title-menu, .recruitment-menu').forEach(menu => {
+    menu.remove();
+  });
+}
+
 function handleClickOutside(e) {
   if (contextMenuElement && !contextMenuElement.contains(e.target)) {
     hideContextMenu();
@@ -284,6 +293,7 @@ function executeRecruitment(hexData) {
 }
 
 function showRecruitmentMenu(hexData, maxKnights, adjacentToWater) {
+  hideAllMenus();
   const menu = document.createElement('div');
   menu.className = 'knight-selection-menu recruitment-menu';
 
@@ -365,6 +375,7 @@ function executeMovement(hex, hexData) {
 }
 
 function showKnightSelectionMenu(hex, hexData) {
+  hideAllMenus();
   const menu = document.createElement('div');
   menu.className = 'knight-selection-menu';
 
@@ -470,6 +481,7 @@ function performMovement(from, to) {
 
 // ========== CONSTRUCTION ==========
 function showConstructionOptions(hex, hexData) {
+  hideAllMenus();
   const menu = document.createElement('div');
   menu.className = 'construction-menu';
   menu.innerHTML = `
@@ -529,6 +541,7 @@ function executeExpedition(hexData) {
 
 // ========== NOBLE TITLE ==========
 function showNobleTitleConfirmation() {
+  hideAllMenus();
   const totalResources = calculateTotalResources();
 
   const menu = document.createElement('div');
@@ -681,7 +694,7 @@ function removeHexClickHandler() {
 
 // Called when turn changes
 export function onTurnChanged() {
-  hideContextMenu();
+  hideAllMenus();
   resetActionState(true); // Full reset on turn change
   removeEndActionButton();
 
@@ -695,7 +708,7 @@ export function onTurnChanged() {
 
 // Export for compatibility
 export function hideActionMenu() {
-  hideContextMenu();
+  hideAllMenus();
   resetActionState(true); // Full reset
   removeEndActionButton();
   removeHexClickHandler();

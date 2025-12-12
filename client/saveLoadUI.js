@@ -3,6 +3,7 @@ import {
   emitSaveGame,
   emitListSaves,
   emitLoadGame,
+  emitLoadLocalSave,
   emitJoinLoadedGame,
   setOnSavesListCallback,
   setOnGameLoadedCallback,
@@ -12,6 +13,7 @@ import {
 } from './ClientSocketEvents.js';
 import { showRoomInfo } from './roomInfo.js';
 import { hideMenu } from './home-menu.js';
+import { uploadSave } from './localSave.js';
 
 let saveLoadModal = null;
 let colorSelectModal = null;
@@ -66,11 +68,12 @@ function showLoadGameModal() {
   saveLoadModal.className = 'modal-overlay';
   saveLoadModal.innerHTML = `
     <div class="modal-content save-load-modal">
-      <h2>📂 Load Saved Game</h2>
+      <h2>Load Saved Game</h2>
       <div class="saves-list" id="saves-list">
         <div class="loading">Loading saves...</div>
       </div>
       <div class="modal-buttons">
+        <button class="modal-btn browse" id="browse-files-btn">Browse Files...</button>
         <button class="modal-btn cancel" id="close-load-modal">Cancel</button>
       </div>
     </div>
@@ -79,8 +82,20 @@ function showLoadGameModal() {
   document.body.appendChild(saveLoadModal);
 
   document.getElementById('close-load-modal').addEventListener('click', closeSaveLoadModal);
+  document.getElementById('browse-files-btn').addEventListener('click', handleBrowseFiles);
   saveLoadModal.addEventListener('click', (e) => {
     if (e.target === saveLoadModal) closeSaveLoadModal();
+  });
+}
+
+// Handle browse files button
+function handleBrowseFiles() {
+  uploadSave((saveData) => {
+    if (saveData && saveData.gameState) {
+      closeSaveLoadModal();
+      // Send save data to server to create a room
+      emitLoadLocalSave(saveData);
+    }
   });
 }
 
@@ -260,5 +275,9 @@ export function removeSaveButton() {
   }
 }
 
-// Initialize on page load
-initSaveLoadMenu();
+// Initialize on page load - wait for DOM to be ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initSaveLoadMenu);
+} else {
+  initSaveLoadMenu();
+}

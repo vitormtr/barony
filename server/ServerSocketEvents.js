@@ -259,6 +259,23 @@ export function handleSocketEvents(socket, io, sessionManager) {
     }
   };
 
+  // Handler to load a game from local save data
+  const handleLoadLocalSave = (saveData) => {
+    try {
+      logger.info('Load local save request', { socketId: socket.id });
+      const result = sessionManager.loadLocalSave(socket, io, saveData);
+
+      if (result.success) {
+        socket.emit('gameLoaded', result);
+      } else {
+        socket.emit('loadGameFailed', { message: result.message });
+      }
+    } catch (error) {
+      handleError(error, 'loadLocalSave');
+      socket.emit('loadGameFailed', { message: 'Error loading local save' });
+    }
+  };
+
   // Handler to join a loaded game by claiming a color
   const handleJoinLoadedGame = (payload) => {
     try {
@@ -376,6 +393,7 @@ export function handleSocketEvents(socket, io, sessionManager) {
   socket.on('saveGame', handleSaveGame);
   socket.on('listSaves', handleListSaves);
   socket.on('loadGame', handleLoadGame);
+  socket.on('loadLocalSave', handleLoadLocalSave);
   socket.on('joinLoadedGame', handleJoinLoadedGame);
   socket.on('getLoadedGameInfo', handleGetLoadedGameInfo);
   socket.on('getAvailableColors', handleGetAvailableColors);
