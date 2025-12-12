@@ -32,32 +32,13 @@ export function getCurrentPhase() {
   return currentPhase;
 }
 
-// Create or update phase indicator
+// Phase indicator removed - no longer showing placement messages
 function updatePhaseIndicator() {
-  if (!phaseIndicatorElement) {
-    phaseIndicatorElement = document.createElement('div');
-    phaseIndicatorElement.id = 'phase-indicator';
-    document.body.appendChild(phaseIndicatorElement);
+  // Remove existing indicator if present
+  if (phaseIndicatorElement) {
+    phaseIndicatorElement.remove();
+    phaseIndicatorElement = null;
   }
-
-  let message = '';
-  let subMessage = '';
-
-  if (currentPhase === 'initialPlacement') {
-    message = `Place your City (${citiesRemaining} remaining)`;
-    subMessage = 'Plain or Field - Knight added automatically';
-  } else {
-    message = 'Waiting...';
-    subMessage = '';
-  }
-
-  phaseIndicatorElement.innerHTML = `
-    <div class="phase-message">${message}</div>
-    ${subMessage ? `<div class="phase-submessage">${subMessage}</div>` : ''}
-  `;
-
-  // Only show during initial placement phase, hide during battle
-  phaseIndicatorElement.style.display = currentPhase === 'initialPlacement' ? 'block' : 'none';
 }
 
 // Show piece menu when clicking a hex
