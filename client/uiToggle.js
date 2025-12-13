@@ -8,7 +8,9 @@ const UI_ELEMENTS_TO_HIDE = [
   '#leader-controls',
   '#turn-indicator',
   '#hud',
-  '#player-color-indicator'
+  '#player-color-indicator',
+  '#resource-panel',
+  '.coordinate-text'
 ];
 
 export function initUIToggle() {
@@ -16,6 +18,7 @@ export function initUIToggle() {
 
   toggleContainer = document.createElement('div');
   toggleContainer.id = 'ui-toggle-container';
+  toggleContainer.style.display = 'none'; // Hidden by default
   toggleContainer.innerHTML = `
     <label class="ui-toggle-label">
       <input type="checkbox" id="ui-toggle-checkbox" checked>
@@ -31,14 +34,27 @@ export function initUIToggle() {
   });
 }
 
+export function showUIToggle() {
+  if (toggleContainer) {
+    toggleContainer.style.display = '';
+  }
+}
+
+export function hideUIToggle() {
+  if (toggleContainer) {
+    toggleContainer.style.display = 'none';
+  }
+}
+
 function toggleUI(show) {
   isHidden = !show;
 
   UI_ELEMENTS_TO_HIDE.forEach(selector => {
-    const element = document.querySelector(selector);
-    if (element) {
+    // Use querySelectorAll to handle both single elements and multiple elements (like .coordinate-text)
+    const elements = document.querySelectorAll(selector);
+    elements.forEach(element => {
       element.style.display = show ? '' : 'none';
-    }
+    });
   });
 
   // Update toggle text

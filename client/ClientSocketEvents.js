@@ -22,6 +22,7 @@ import { showPlayerColor } from './playerColorIndicator.js';
 import { initBattlePhase, onTurnChanged as actionMenuTurnChanged, hideActionMenu } from './actionMenu.js';
 import { createTitleCard, updateTitleCard, removeTitleCard } from './titleCard.js';
 import { saveToLocal, startAutoSave, updateGameState, addLocalSaveButtons } from './localSave.js';
+import { showUIToggle, hideUIToggle } from './uiToggle.js';
 
 export const socket = io();
 export let player = null;
@@ -38,6 +39,7 @@ function hideMenu() {
     logoMenuContainer.style.display = 'none';
   }
   document.body.style.backgroundImage = 'none';
+  showUIToggle();
 }
 
 // Getter function to always get the current player reference
