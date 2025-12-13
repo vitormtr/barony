@@ -212,58 +212,6 @@ export class Sessions {
         return { success: true, message: 'Textures distributed successfully!' };
     }
 
-    // [TEST] Place pieces randomly and start battle phase
-    skipToBattlePhase(socket, io) {
-        const roomId = this.getRoomIdBySocketId(socket.id);
-        const session = this.session[roomId];
-
-        if (!session) {
-            return { success: false, message: 'Room not found!' };
-        }
-
-        // Only leader can do this
-        if (session.leaderId !== socket.id) {
-            return { success: false, message: 'Only the leader can do this!' };
-        }
-
-        const players = Object.values(session.players);
-        if (players.length < 1) {
-            return { success: false, message: 'Need at least 1 player!' };
-        }
-
-        // First do texture distribution if not done yet
-        if (session.gamePhase === GAME_PHASES.WAITING) {
-            session.lockedForEntry = true;
-            session.gameStarted = true;
-
-            // Use BoardSetup module for quick setup
-            BoardSetup.quickSetupForTesting(session.boardState, players);
-        } else {
-            // Just place pieces if textures already distributed
-            BoardSetup.placeInitialPieces(session.boardState, players, 3);
-        }
-
-        // Start battle phase
-        session.gamePhase = GAME_PHASES.BATTLE;
-        session.playerOnTurn = players[0];
-
-        // Notify all players
-        io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
-        io.to(roomId).emit('drawPlayers', players);
-        io.to(roomId).emit('phaseChanged', { phase: 'battle' });
-        io.to(roomId).emit('initialPlacementComplete', {
-            message: '[TEST] Pieces placed! Battle phase started!'
-        });
-        io.to(roomId).emit('turnChanged', {
-            currentPlayerId: session.playerOnTurn.id,
-            currentPlayerColor: session.playerOnTurn.color,
-            currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
-        });
-
-        console.log(`[TEST] Skip to battle phase in room ${roomId}`);
-        return { success: true, message: 'Pieces placed randomly!' };
-    }
-
     // Start initial placement phase using InitialPlacement module
     startInitialPlacement(roomId, io) {
         const session = this.session[roomId];

@@ -1,5 +1,26 @@
 import { jest } from '@jest/globals';
 import { Sessions } from '../server/Sessions.js';
+import { quickSetupForTesting } from '../server/BoardSetup.js';
+
+// Helper function to setup battle phase for testing
+function setupBattlePhaseForTesting(sessions, roomId, mockIo) {
+  const session = sessions.session[roomId];
+  if (!session) return { success: false, message: 'Room not found!' };
+
+  const players = Object.values(session.players);
+  if (players.length < 1) return { success: false, message: 'Need at least 1 player!' };
+
+  // Setup board and place pieces
+  session.lockedForEntry = true;
+  session.gameStarted = true;
+  quickSetupForTesting(session.boardState, players);
+
+  // Start battle phase
+  session.gamePhase = 'battle';
+  session.playerOnTurn = players[0];
+
+  return { success: true };
+}
 
 // Mock socket and io
 const createMockSocket = (id) => ({
@@ -151,9 +172,9 @@ describe('Full 4-Player Game Simulation', () => {
     });
   });
 
-  describe('Skip to Battle Phase (Test Mode)', () => {
-    test('should skip to battle phase', () => {
-      const result = sessions.skipToBattlePhase(sockets.player1, mockIo);
+  describe('Battle Phase Setup', () => {
+    test('should setup battle phase', () => {
+      const result = setupBattlePhaseForTesting(sessions, roomId, mockIo);
       expect(result.success).toBe(true);
 
       const session = sessions.session[roomId];
@@ -161,7 +182,7 @@ describe('Full 4-Player Game Simulation', () => {
     });
 
     test('should place cities and knights for all players', () => {
-      sessions.skipToBattlePhase(sockets.player1, mockIo);
+      setupBattlePhaseForTesting(sessions, roomId, mockIo);
       const session = sessions.session[roomId];
 
       // Each player should have cities on board
@@ -177,7 +198,7 @@ describe('Full 4-Player Game Simulation', () => {
 
   describe('Battle Phase Actions', () => {
     beforeEach(() => {
-      sessions.skipToBattlePhase(sockets.player1, mockIo);
+      setupBattlePhaseForTesting(sessions, roomId, mockIo);
     });
 
     test('should process recruitment action', () => {
@@ -239,7 +260,7 @@ describe('Full 4-Player Game Simulation', () => {
 
   describe('Turn Rotation', () => {
     beforeEach(() => {
-      sessions.skipToBattlePhase(sockets.player1, mockIo);
+      setupBattlePhaseForTesting(sessions, roomId, mockIo);
     });
 
     test('should rotate through all 4 players', () => {
@@ -270,7 +291,7 @@ describe('Full 4-Player Game Simulation', () => {
 
   describe('Victory Condition', () => {
     beforeEach(() => {
-      sessions.skipToBattlePhase(sockets.player1, mockIo);
+      setupBattlePhaseForTesting(sessions, roomId, mockIo);
     });
 
     test('should detect when player becomes Duke', () => {
@@ -307,7 +328,7 @@ describe('Full 4-Player Game Simulation', () => {
 
   describe('Game Restart', () => {
     beforeEach(() => {
-      sessions.skipToBattlePhase(sockets.player1, mockIo);
+      setupBattlePhaseForTesting(sessions, roomId, mockIo);
     });
 
     test('should restart game when leader confirms', () => {

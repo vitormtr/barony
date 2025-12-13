@@ -59,8 +59,16 @@ describe('InitialPlacement', () => {
             expect(citiesPerPlayer['p4']).toBe(3);
         });
 
-        it('should throw error if not 4 players', () => {
-            expect(() => createPlacementSequence(['p1', 'p2'])).toThrow();
+        it('should throw error if no players or more than 4', () => {
+            expect(() => createPlacementSequence([])).toThrow();
+            expect(() => createPlacementSequence(['p1', 'p2', 'p3', 'p4', 'p5'])).toThrow();
+        });
+
+        it('should support 1-4 players', () => {
+            expect(() => createPlacementSequence(['p1'])).not.toThrow();
+            expect(() => createPlacementSequence(['p1', 'p2'])).not.toThrow();
+            expect(() => createPlacementSequence(['p1', 'p2', 'p3'])).not.toThrow();
+            expect(() => createPlacementSequence(['p1', 'p2', 'p3', 'p4'])).not.toThrow();
         });
     });
 

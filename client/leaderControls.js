@@ -32,9 +32,6 @@ function showLeaderControls() {
       <button id="randomDistributionBtn" class="leader-btn" title="Distribute all textures randomly on the board">
         Distribute Textures
       </button>
-      <button id="skipToBattleBtn" class="leader-btn test-btn" title="[TEST] Skip directly to battle phase">
-        [TEST] Skip to Battle
-      </button>
       <button id="saveGameBtn" class="leader-btn save-btn" title="Save current game state">
         Save Game
       </button>
@@ -47,7 +44,6 @@ function showLeaderControls() {
 
   // Event listeners
   document.getElementById('randomDistributionBtn').addEventListener('click', handleRandomDistribution);
-  document.getElementById('skipToBattleBtn').addEventListener('click', handleSkipToBattle);
   document.getElementById('saveGameBtn').addEventListener('click', handleSaveGame);
   document.getElementById('restartGameBtn').addEventListener('click', showRestartModal);
 }
@@ -73,38 +69,6 @@ function handleRandomDistribution() {
 
   showInfo('Distributing textures...');
   socket.emit('randomDistribution');
-}
-
-function handleSkipToBattle() {
-  if (!isLeader) {
-    showError('Only the leader can do this!');
-    return;
-  }
-
-  if (!confirm('[TEST] This will:\n- Distribute textures randomly\n- Place 3 cities+knights for each player\n- Start battle phase\n\nDo you want to continue?')) {
-    return;
-  }
-
-  showInfo('[TEST] Skipping to battle phase...');
-  socket.emit('skipToBattle');
-
-  socket.once('skipToBattleResult', (result) => {
-    if (result.success) {
-      showSuccess(result.message);
-      disableSkipToBattleButton();
-      disableDistributionButton();
-    } else {
-      showError(result.message);
-    }
-  });
-}
-
-function disableSkipToBattleButton() {
-  const btn = document.getElementById('skipToBattleBtn');
-  if (btn) {
-    btn.disabled = true;
-    btn.style.display = 'none';
-  }
 }
 
 function showRestartModal() {

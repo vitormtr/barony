@@ -188,17 +188,6 @@ export function handleSocketEvents(socket, io, sessionManager) {
     }
   };
 
-  // Handler to skip directly to battle phase (TEST)
-  const handleSkipToBattle = () => {
-    try {
-      logger.info('[TEST] Skip to battle request', { socketId: socket.id });
-      const result = sessionManager.skipToBattlePhase(socket, io);
-      socket.emit('skipToBattleResult', result);
-    } catch (error) {
-      handleError(error, 'skipToBattle');
-    }
-  };
-
   // Handler to rejoin a room after page refresh
   const handleRejoinRoom = (payload) => {
     try {
@@ -388,7 +377,6 @@ export function handleSocketEvents(socket, io, sessionManager) {
   socket.on('placePiece', handlePlacePiece);
   socket.on('battleAction', handleBattleAction);
   socket.on('endTurn', handleEndTurn);
-  socket.on('skipToBattle', handleSkipToBattle);
   socket.on('rejoinRoom', handleRejoinRoom);
   socket.on('saveGame', handleSaveGame);
   socket.on('listSaves', handleListSaves);

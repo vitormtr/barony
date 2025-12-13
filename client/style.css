@@ -1045,15 +1045,6 @@ button:active {
   color: var(--color-primary);
 }
 
-.leader-btn.test-btn {
-  font-size: 0.7rem;
-  opacity: 0.8;
-}
-
-.leader-btn.test-btn:hover {
-  opacity: 1;
-}
-
 .leader-btn.disabled {
   opacity: 0.4;
   cursor: not-allowed;
