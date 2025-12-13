@@ -2129,6 +2129,221 @@ button:active {
 }
 
 /* ========================================
+   RULES MENU
+   ======================================== */
+
+#rules-button {
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
+  font-size: 1.4rem;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 1000;
+  transition: var(--transition-normal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#rules-button:hover {
+  background: var(--color-primary);
+  color: var(--color-background);
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+}
+
+.rules-modal-content {
+  max-width: 700px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.rules-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--color-surface-light);
+  margin-bottom: 15px;
+}
+
+.rules-header h2 {
+  margin: 0;
+  color: var(--color-primary);
+  font-family: var(--font-decorative);
+}
+
+.rules-close-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 2rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: var(--transition-fast);
+}
+
+.rules-close-btn:hover {
+  color: var(--color-primary);
+}
+
+.rules-body {
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.rules-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rules-section {
+  background: var(--color-surface);
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid var(--color-surface-light);
+}
+
+.rules-section h3 {
+  color: var(--color-primary);
+  margin: 0 0 10px 0;
+  font-size: 1.1rem;
+  border-bottom: 1px solid var(--color-surface-light);
+  padding-bottom: 8px;
+  text-align: center;
+}
+
+.rules-section h4 {
+  color: var(--color-text);
+  margin: 10px 0 5px 0;
+  font-size: 0.95rem;
+}
+
+.rules-section p {
+  margin: 5px 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.rules-section ul {
+  margin: 8px 0;
+  padding-left: 20px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.rules-section li {
+  margin: 4px 0;
+}
+
+.rules-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rules-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--color-background);
+  border-radius: 6px;
+}
+
+.action-icon {
+  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rules-action strong {
+  color: var(--color-text);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.rules-action p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.rules-terrains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.terrain-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--color-background);
+  border-radius: 15px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.terrain-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+.terrain-forest { background: #228b22; }
+.terrain-field { background: #daa520; }
+.terrain-plain { background: #90EE90; }
+.terrain-mountain { background: #808080; }
+.terrain-lake { background: #4169E1; }
+
+.rules-titles {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: center;
+}
+
+.title-badge {
+  padding: 4px 10px;
+  background: var(--color-background);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-surface-light);
+}
+
+.title-badge.title-duke {
+  background: linear-gradient(145deg, #9b59b6, #8e44ad);
+  color: white;
+  border-color: #9b59b6;
+  font-weight: bold;
+}
+
+.title-arrow {
+  color: var(--color-primary);
+  font-size: 1.2rem;
+}
+
+/* ========================================
    MENU DE PEÇAS
    ======================================== */
 
