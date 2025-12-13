@@ -2087,6 +2087,48 @@ button:active {
 }
 
 /* ========================================
+   UI TOGGLE CHECKBOX
+   ======================================== */
+
+#ui-toggle-container {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  z-index: 1000;
+}
+
+.ui-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  background: var(--color-surface);
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 2px solid var(--color-surface-light);
+  transition: var(--transition-normal);
+  user-select: none;
+}
+
+.ui-toggle-label:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+}
+
+#ui-toggle-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.ui-toggle-text {
+  font-size: 0.85rem;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+/* ========================================
    MENU DE PEÇAS
    ======================================== */
 
