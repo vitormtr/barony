@@ -35,6 +35,7 @@ export function saveGame(session, roomId) {
         lockedForEntry: session.lockedForEntry,
         boardState: session.boardState,
         players: serializePlayers(session.players),
+        playerOrder: Object.keys(session.players), // Preserve player order
         playerOnTurnColor: session.playerOnTurn?.color || null,
         initialPlacementState: session.initialPlacementState,
         // Game ending state
@@ -65,6 +66,7 @@ function serializePlayers(players) {
         serialized[id] = {
             id: player.id,
             color: player.color,
+            name: player.name,
             image: player.image,
             hexCount: player.hexCount,
             pieces: player.pieces,

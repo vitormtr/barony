@@ -142,9 +142,9 @@ describe('Player', () => {
       player.resources.mountain = 5;
       // Total: 5*5 + 5*3 + 5*2 = 50 points
       player.spendResources(12);
-      // Spends from cheapest first: 5 mountain (10pts) + 1 forest (3pts) = 13pts spent
-      // After spending 13: 50 - 13 = 37
-      expect(player.getTotalResources()).toBe(37);
+      // New logic: spends exactly 12 if possible (2 fields = 10 + 1 mountain = 2)
+      // After spending 12: 50 - 12 = 38
+      expect(player.getTotalResources()).toBe(38);
     });
   });
 

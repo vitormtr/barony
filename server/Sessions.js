@@ -963,16 +963,22 @@ export class Sessions {
 
         // Reconstruct players as Player instances
         const players = {};
-        for (const [oldId, playerData] of Object.entries(saveData.players)) {
+        // Use playerOrder if saved, otherwise use Object.entries order
+        const playerEntries = saveData.playerOrder
+            ? saveData.playerOrder.map(id => [id, saveData.players[id]])
+            : Object.entries(saveData.players);
+
+        for (const [oldId, playerData] of playerEntries) {
             // Use socket.id for the loading player, keep color mapping
             const player = new Player(
                 oldId, // Keep original ID temporarily
                 playerData.color,
-                playerData.hexCount,
-                playerData.pieces,
-                playerData.resources,
-                playerData.title,
-                playerData.victoryPoints
+                playerData.name || null,
+                playerData.hexCount || null,
+                playerData.pieces || null,
+                playerData.resources || null,
+                playerData.title || null,
+                playerData.victoryPoints || 0
             );
             players[oldId] = player;
         }
@@ -1169,6 +1175,15 @@ export class Sessions {
             if (turnIndex !== -1) {
                 session.initialPlacementState.turnOrder[turnIndex] = socket.id;
             }
+        }
+
+        // Update placementSequence playerIds if exists
+        if (session.initialPlacementState?.placementSequence) {
+            session.initialPlacementState.placementSequence.forEach(entry => {
+                if (entry.playerId === oldPlayerId) {
+                    entry.playerId = socket.id;
+                }
+            });
         }
 
         // Join socket to room

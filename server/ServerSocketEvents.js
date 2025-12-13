@@ -93,9 +93,18 @@ export function handleSocketEvents(socket, io, sessionManager) {
 
   const handleUpdatePlayerTexture = (payload) => {
     const { texture, player } = payload;
-    const playerObj = new Player(player.id, player.color, player.hexCount, player.pieces); 
+    const playerObj = new Player(
+      player.id,
+      player.color,
+      player.name || null,
+      player.hexCount || null,
+      player.pieces || null,
+      player.resources || null,
+      player.title || null,
+      player.victoryPoints || 0
+    );
     playerObj.updateTextures(texture);
-    
+
     socket.emit(SOCKET_EVENTS.PLAYER_TEXTURE_UPDATED, JSON.parse(JSON.stringify(playerObj)));
   };  
 

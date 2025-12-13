@@ -71,27 +71,85 @@ export class Player {
     }
 
     // Spend resources for noble title (spending points, not tokens)
-    // Prioritizes spending lower value resources first
+    // Tries to spend exactly pointsToSpend, or minimal overspend if not possible
+    // Prioritizes higher value tokens to minimize waste
     spendResources(pointsToSpend) {
-        let remaining = pointsToSpend;
-
-        // Sort resources by value (lowest first) to spend efficiently
-        const sortedResources = Object.keys(this.resources).sort(
-            (a, b) => (RESOURCE_VALUES[a] || 0) - (RESOURCE_VALUES[b] || 0)
-        );
-
-        for (const resource of sortedResources) {
-            if (remaining <= 0) break;
+        // Build list of all individual tokens with their values
+        const tokens = [];
+        for (const [resource, count] of Object.entries(this.resources)) {
             const value = RESOURCE_VALUES[resource] || 0;
             if (value === 0) continue;
-
-            while (this.resources[resource] > 0 && remaining > 0) {
-                this.resources[resource]--;
-                remaining -= value;
+            for (let i = 0; i < count; i++) {
+                tokens.push({ resource, value });
             }
         }
 
-        return remaining <= 0;
+        // Sort by value descending (higher value first)
+        tokens.sort((a, b) => b.value - a.value);
+
+        // Try to find exact match or minimal overspend using dynamic approach
+        // First, try greedy with high-value tokens
+        let bestSelection = null;
+        let bestTotal = Infinity;
+
+        // Greedy approach: take high-value tokens until we reach or exceed target
+        const greedySelection = [];
+        let greedyTotal = 0;
+        for (const token of tokens) {
+            if (greedyTotal >= pointsToSpend) break;
+            greedySelection.push(token);
+            greedyTotal += token.value;
+        }
+
+        if (greedyTotal >= pointsToSpend) {
+            bestSelection = greedySelection;
+            bestTotal = greedyTotal;
+        }
+
+        // Try to find exact match by checking if we can swap last token for smaller ones
+        if (bestTotal > pointsToSpend && bestSelection && bestSelection.length > 0) {
+            const lastToken = bestSelection[bestSelection.length - 1];
+            const withoutLast = bestSelection.slice(0, -1);
+            const withoutLastTotal = withoutLast.reduce((sum, t) => sum + t.value, 0);
+            const needed = pointsToSpend - withoutLastTotal;
+
+            // Look for combination of smaller tokens that sum to exactly needed
+            const remaining = tokens.filter(t => !withoutLast.includes(t));
+            const smallerTokens = remaining.filter(t => t.value <= lastToken.value);
+
+            // Simple check: can we find tokens that sum exactly to needed?
+            for (const t of smallerTokens) {
+                if (t.value === needed) {
+                    bestSelection = [...withoutLast, t];
+                    bestTotal = pointsToSpend;
+                    break;
+                }
+            }
+
+            // Try pairs
+            if (bestTotal > pointsToSpend) {
+                for (let i = 0; i < smallerTokens.length && bestTotal > pointsToSpend; i++) {
+                    for (let j = i + 1; j < smallerTokens.length && bestTotal > pointsToSpend; j++) {
+                        const pairSum = smallerTokens[i].value + smallerTokens[j].value;
+                        if (withoutLastTotal + pairSum >= pointsToSpend && withoutLastTotal + pairSum < bestTotal) {
+                            bestSelection = [...withoutLast, smallerTokens[i], smallerTokens[j]];
+                            bestTotal = withoutLastTotal + pairSum;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!bestSelection || bestTotal < pointsToSpend) {
+            return false; // Not enough resources
+        }
+
+        // Apply the spending
+        for (const token of bestSelection) {
+            this.resources[token.resource]--;
+        }
+
+        return true;
     }
 
     // Promote to next title
