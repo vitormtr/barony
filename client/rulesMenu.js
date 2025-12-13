@@ -27,49 +27,49 @@ const RULES_CONTENT = `
     <div class="rules-actions">
       <div class="rules-action">
         <span class="action-icon">&#9822;</span>
-        <div>
+        <div class="action-text">
           <strong>Recruitment</strong>
           <p>Add a knight to one of your cities.</p>
         </div>
       </div>
       <div class="rules-action">
         <span class="action-icon">&#8680;</span>
-        <div>
+        <div class="action-text">
           <strong>Movement</strong>
           <p>Move a knight to an adjacent hex. Moving to a new terrain collects that resource.</p>
         </div>
       </div>
       <div class="rules-action">
         <span class="action-icon">&#127969;</span>
-        <div>
+        <div class="action-text">
           <strong>Village</strong>
           <p>Build a village on forest, field, or plain where you have a knight.</p>
         </div>
       </div>
       <div class="rules-action">
         <span class="action-icon">&#127983;</span>
-        <div>
+        <div class="action-text">
           <strong>Stronghold</strong>
           <p>Build a stronghold on forest, field, or plain where you have a knight.</p>
         </div>
       </div>
       <div class="rules-action">
         <span class="action-icon">&#128081;</span>
-        <div>
+        <div class="action-text">
           <strong>Noble Title</strong>
           <p>Spend 15+ resource points to advance your title.</p>
         </div>
       </div>
       <div class="rules-action">
         <span class="action-icon">&#9876;</span>
-        <div>
+        <div class="action-text">
           <strong>Expedition</strong>
           <p>Remove a knight from the board to gain resources based on the terrain.</p>
         </div>
       </div>
       <div class="rules-action">
         <span class="action-icon">&#127984;</span>
-        <div>
+        <div class="action-text">
           <strong>New City</strong>
           <p>Convert a village to a city. Gains 10 victory points.</p>
         </div>
@@ -146,7 +146,7 @@ export function initRulesMenu() {
 
   rulesButton = document.createElement('button');
   rulesButton.id = 'rules-button';
-  rulesButton.innerHTML = '?';
+  rulesButton.innerHTML = 'How to Play';
   rulesButton.title = 'Game Rules';
   rulesButton.addEventListener('click', showRulesModal);
 

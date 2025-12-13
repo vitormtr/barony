@@ -56,12 +56,8 @@ body {
   width: 100%;
   background: var(--color-background);
   background-image:
-    radial-gradient(ellipse at top, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
-    radial-gradient(ellipse at bottom, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
-    url("./images/background.png");
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+    radial-gradient(ellipse at top, rgba(212, 175, 55, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom, rgba(139, 69, 19, 0.08) 0%, transparent 50%);
   color: var(--color-text);
 }
 
@@ -2134,29 +2130,40 @@ button:active {
 
 #rules-button {
   position: fixed;
-  top: 15px;
-  left: 15px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--color-surface);
-  border: 2px solid var(--color-primary);
-  color: var(--color-primary);
-  font-size: 1.4rem;
-  font-weight: bold;
+  top: 24px;
+  right: 150px;
+  background: none !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 0.9rem;
   cursor: pointer;
   z-index: 1000;
-  transition: var(--transition-normal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  transition: color var(--transition-normal);
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  min-height: 0;
+  width: auto;
+  height: auto;
 }
 
 #rules-button:hover {
-  background: var(--color-primary);
-  color: var(--color-background);
-  transform: scale(1.1);
-  box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+  color: var(--color-primary);
+}
+
+#rules-button:focus,
+#rules-button:active,
+#rules-button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  background: none !important;
+  border: none !important;
 }
 
 .rules-modal-content {
@@ -2270,6 +2277,11 @@ button:active {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.action-text {
+  text-align: center;
+  flex: 1;
 }
 
 .rules-action strong {
