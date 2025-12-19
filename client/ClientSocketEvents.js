@@ -23,6 +23,7 @@ import { initBattlePhase, onTurnChanged as actionMenuTurnChanged, hideActionMenu
 import { createTitleCard, updateTitleCard, removeTitleCard } from './titleCard.js';
 import { saveToLocal, startAutoSave, updateGameState, addLocalSaveButtons } from './localSave.js';
 import { showUIToggle, hideUIToggle } from './uiToggle.js';
+import { initGameHistory, addHistoryEntry, showHistory, hideHistory, clearHistory } from './gameHistory.js';
 
 export const socket = io();
 export let player = null;
@@ -283,6 +284,8 @@ function handleTurnChanged(turnData) {
   actionMenuTurnChanged();
   latestTurnData = turnData;
   saveGameStateLocally();
+  // Add to history
+  addHistoryEntry('turnEnd', turnData.currentPlayerColor, `${turnData.currentPlayerName}'s turn`);
 }
 
 function handlePlayerDisconnected(data) {
@@ -419,6 +422,10 @@ function handleInitialPlacementComplete(data) {
   setTimeout(() => {
     initBattlePhase();
     createTitleCard();
+    // Initialize game history
+    initGameHistory();
+    showHistory();
+    addHistoryEntry('gameStart', player?.color || 'blue', 'Battle phase');
     // Start auto-save and add download button
     startAutoSave();
     addLocalSaveButtons();
@@ -523,6 +530,10 @@ function handleRejoinSuccess(data) {
     setTimeout(() => {
       initBattlePhase();
       createTitleCard();
+      // Initialize game history for loaded game
+      initGameHistory();
+      showHistory();
+      addHistoryEntry('gameStart', player?.color || 'blue', 'Game loaded');
       // Trigger turn changed to setup action menu correctly
       actionMenuTurnChanged();
       // Start auto-save and add download button
