@@ -55,6 +55,44 @@ export function initGameHistory() {
     historyContainer.classList.toggle('minimized');
     toggleBtn.textContent = historyContainer.classList.contains('minimized') ? '+' : '−';
   });
+
+  // Make draggable by header
+  const header = historyContainer.querySelector('.history-header');
+  let isDragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (e.target === toggleBtn) return; // Don't drag when clicking toggle
+    isDragging = true;
+    offsetX = e.clientX - historyContainer.offsetLeft;
+    offsetY = e.clientY - historyContainer.offsetTop;
+    header.style.cursor = 'grabbing';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+
+    let newX = e.clientX - offsetX;
+    let newY = e.clientY - offsetY;
+
+    // Keep within viewport bounds
+    const maxX = window.innerWidth - historyContainer.offsetWidth;
+    const maxY = window.innerHeight - historyContainer.offsetHeight;
+    newX = Math.max(0, Math.min(newX, maxX));
+    newY = Math.max(0, Math.min(newY, maxY));
+
+    historyContainer.style.left = newX + 'px';
+    historyContainer.style.top = newY + 'px';
+    historyContainer.style.right = 'auto'; // Clear right positioning
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      header.style.cursor = 'grab';
+    }
+  });
 }
 
 export function addHistoryEntry(action, playerColor, details = '') {
