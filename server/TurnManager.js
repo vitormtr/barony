@@ -130,33 +130,49 @@ export function calculateFinalScore(player) {
  * @returns {Array} Array of score objects with turn order index
  */
 export function calculateAllScores(players) {
-    const scores = players.map((p, index) => ({
-        id: p.id,
-        color: p.color,
-        name: p.name || p.color,
-        score: calculateFinalScore(p),
-        title: p.getTitleName(),
-        resources: p.getTotalResources(),
-        victoryPoints: p.victoryPoints,
-        turnOrderIndex: index
-    }));
+    const scores = players.map((p, index) => {
+        // Count cities built (5 initial - remaining)
+        const citiesBuilt = 5 - (p.pieces?.city || 0);
+
+        return {
+            id: p.id,
+            color: p.color,
+            name: p.name || p.color,
+            score: calculateFinalScore(p),
+            title: p.getTitleName(),
+            titleRank: BattleActions.TITLE_RANK[p.title] || 0,
+            citiesBuilt: citiesBuilt,
+            battlesWon: p.battlesWon || 0,
+            resources: p.getTotalResources(),
+            victoryPoints: p.victoryPoints,
+            turnOrderIndex: index
+        };
+    });
 
     return scores;
 }
 
 /**
  * Determine the winner from scores
- * Official rules: In case of tie, winner is the tied player
- * furthest from the first player in turn order
- * @param {Array} scores - Array of score objects with turnOrderIndex
+ * Rules:
+ * 1. Highest title wins
+ * 2. If tied on title, most cities built wins
+ * 3. If tied on cities, most battles won wins
+ * @param {Array} scores - Array of score objects
  * @returns {Object} Winner score object
  */
 export function determineWinner(scores) {
     const sorted = [...scores].sort((a, b) => {
-        if (b.score !== a.score) {
-            return b.score - a.score;
+        // Primary: highest title
+        if (b.titleRank !== a.titleRank) {
+            return b.titleRank - a.titleRank;
         }
-        return b.turnOrderIndex - a.turnOrderIndex;
+        // Secondary: most cities built
+        if (b.citiesBuilt !== a.citiesBuilt) {
+            return b.citiesBuilt - a.citiesBuilt;
+        }
+        // Tertiary: most battles won
+        return b.battlesWon - a.battlesWon;
     });
 
     return sorted[0];
@@ -174,15 +190,17 @@ export function endGame(session) {
     const scores = calculateAllScores(players);
     const winner = determineWinner(scores);
 
+    // Sort by title rank, then cities built, then battles won
     const sortedScores = [...scores].sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return b.turnOrderIndex - a.turnOrderIndex;
+        if (b.titleRank !== a.titleRank) return b.titleRank - a.titleRank;
+        if (b.citiesBuilt !== a.citiesBuilt) return b.citiesBuilt - a.citiesBuilt;
+        return b.battlesWon - a.battlesWon;
     });
 
     return {
         scores: sortedScores,
         winner,
-        message: `Game over! ${winner.color} won with ${winner.score} points!`
+        message: `Game over! ${winner.name} (${winner.title}) won!`
     };
 }
 

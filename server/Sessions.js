@@ -382,7 +382,24 @@ export class Sessions {
 
     // MOVEMENT: Move a knight to adjacent hex (with combat)
     actionMovement(session, player, payload, io, roomId) {
-        const result = BattleActions.executeMovement(session.boardState, player, payload, session.players);
+        // Initialize movedKnights array if not exists
+        if (!session.movedKnights) {
+            session.movedKnights = [];
+        }
+
+        const result = BattleActions.executeMovement(
+            session.boardState,
+            player,
+            payload,
+            session.players,
+            session.movedKnights
+        );
+
+        if (result.success && result.movedTo) {
+            // Track the destination position as "moved"
+            session.movedKnights.push(result.movedTo);
+        }
+
         if (result.success) {
             this.emitBoardUpdate(session, io, roomId);
         }
@@ -494,6 +511,9 @@ export class Sessions {
             console.log('endTurn: not this player turn');
             return;
         }
+
+        // Clear moved knights tracking for next turn
+        session.movedKnights = [];
 
         // Process end of turn
         const result = TurnManager.processEndTurn(session, socket.id);

@@ -53,8 +53,9 @@ export function executeRecruitment(boardState, player, payload, players) {
 
 /**
  * MOVEMENT: Move a knight to adjacent hex (with combat)
+ * movedKnights tracks positions where knights have already moved FROM this turn
  */
-export function executeMovement(boardState, player, payload, players) {
+export function executeMovement(boardState, player, payload, players, movedKnights = []) {
     const { from, to } = payload;
     const fromHex = boardState[from.row]?.[from.col];
     const toHex = boardState[to.row]?.[to.col];
@@ -66,6 +67,12 @@ export function executeMovement(boardState, player, payload, players) {
     const knightIndex = fromHex.pieces?.findIndex(p => p.type === 'knight' && p.color === player.color);
     if (knightIndex === -1 || knightIndex === undefined) {
         return { success: false, message: 'No knight of yours in this hex!' };
+    }
+
+    // Check if a knight from this hex has already moved this turn
+    const alreadyMoved = movedKnights.some(k => k.row === from.row && k.col === from.col);
+    if (alreadyMoved) {
+        return { success: false, message: 'This knight already moved this turn!' };
     }
 
     if (!BoardLogic.isAdjacentToPosition(from.row, from.col, to.row, to.col)) {
@@ -100,6 +107,28 @@ export function executeMovement(boardState, player, payload, players) {
         }
     }
 
+    // Check if movement would exceed 2 pieces limit
+    // Combat will remove enemy pieces, so we calculate post-combat count
+    const playerKnightsInDest = toPieces.filter(p => p.type === 'knight' && p.color === player.color).length;
+    const playerStructureInDest = toPieces.some(p => ['city', 'stronghold', 'village'].includes(p.type) && p.color === player.color);
+    const enemyVillage = toPieces.some(p => p.type === 'village' && p.color !== player.color);
+    const enemyKnight = toPieces.some(p => p.type === 'knight' && p.color !== player.color);
+
+    // After moving: +1 knight. After combat with 2+ knights: enemy removed
+    const knightsAfterMove = playerKnightsInDest + 1;
+    const willHaveCombat = knightsAfterMove >= 2 && (enemyVillage || enemyKnight);
+
+    // Calculate pieces after move and potential combat
+    let piecesAfterMove = knightsAfterMove + (playerStructureInDest ? 1 : 0);
+    if (!willHaveCombat) {
+        // Enemy pieces remain
+        piecesAfterMove += toPieces.filter(p => p.color !== player.color).length;
+    }
+
+    if (piecesAfterMove > 2) {
+        return { success: false, message: 'Cannot exceed 2 pieces per hex!' };
+    }
+
     const knight = fromHex.pieces.splice(knightIndex, 1)[0];
     if (!toHex.pieces) toHex.pieces = [];
     toHex.pieces.push(knight);
@@ -111,7 +140,8 @@ export function executeMovement(boardState, player, payload, players) {
         message = combatResult.message;
     }
 
-    return { success: true, message, combatResult };
+    // Return the destination so it can be tracked as "moved"
+    return { success: true, message, combatResult, movedTo: { row: to.row, col: to.col } };
 }
 
 /**
@@ -195,6 +225,11 @@ export function processCombat(boardState, player, hex, row, col, players) {
     }
 
     if (destroyed.length > 0) {
+        // Increment battles won for the attacker
+        if (player.addBattleWon) {
+            player.addBattleWon();
+        }
+
         let message = `Combat! Destroyed: ${destroyed.join(', ')}`;
         if (resourceGained) {
             message += ` (Stole 1 ${BoardLogic.getResourceName(resourceGained)}!)`;
@@ -399,9 +434,19 @@ export function executeNobleTitle(boardState, player, payload, players) {
 }
 
 /**
- * Calculate player's final score
- * Official rules: Victory Points + unused Resource points
- * (VP already includes 10 points per city built)
+ * Title ranking for comparison (higher = better)
+ */
+export const TITLE_RANK = {
+    baron: 0,
+    viscount: 1,
+    count: 2,
+    marquis: 3,
+    duke: 4
+};
+
+/**
+ * Calculate player's final score (VP + resources, NOT including title)
+ * Title is used as primary tiebreaker, cities built as secondary
  */
 export function calculateFinalScore(player) {
     let score = player.victoryPoints;

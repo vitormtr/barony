@@ -321,6 +321,193 @@ describe('BattleActions', () => {
             expect(board[2][2].pieces.filter(p => p.type === 'city').length).toBe(1);
             expect(board[2][1].pieces.length).toBe(1);
         });
+
+        describe('knight movement tracking (same knight cannot move twice)', () => {
+            it('should allow first movement with empty movedKnights', () => {
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [];
+
+                const movedKnights = [];
+                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnights);
+
+                expect(result.success).toBe(true);
+                expect(result.movedTo).toEqual({ row: 2, col: 3 });
+            });
+
+            it('should block movement if knight already moved from that position this turn', () => {
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [];
+
+                // Simulate that a knight already moved TO position (2,2)
+                const movedKnights = [{ row: 2, col: 2 }];
+                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnights);
+
+                expect(result.success).toBe(false);
+                expect(result.message).toContain('already moved');
+            });
+
+            it('should allow moving different knights in same turn', () => {
+                // Setup: two knights in different hexes
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[3][2].texture = 'plain.png';
+                board[3][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [];
+                board[3][3].texture = 'plain.png';
+                board[3][3].pieces = [];
+
+                const movedKnights = [];
+
+                // Move first knight
+                const result1 = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnights);
+                expect(result1.success).toBe(true);
+                movedKnights.push(result1.movedTo);
+
+                // Move second knight from different position
+                const result2 = executeMovement(board, player, { from: { row: 3, col: 2 }, to: { row: 3, col: 3 } }, players, movedKnights);
+                expect(result2.success).toBe(true);
+            });
+
+            it('should block same knight from moving twice even to different destination', () => {
+                // Setup: knight that will move, then try to move again
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [];
+                board[2][4].texture = 'plain.png';
+                board[2][4].pieces = [];
+
+                const movedKnights = [];
+
+                // Move knight from (2,2) to (2,3)
+                const result1 = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnights);
+                expect(result1.success).toBe(true);
+                movedKnights.push(result1.movedTo); // Track the destination (2,3)
+
+                // Try to move the same knight again from (2,3) to (2,4)
+                const result2 = executeMovement(board, player, { from: { row: 2, col: 3 }, to: { row: 2, col: 4 } }, players, movedKnights);
+                expect(result2.success).toBe(false);
+                expect(result2.message).toContain('already moved');
+            });
+
+            it('should return movedTo position on successful movement', () => {
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [];
+
+                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, []);
+
+                expect(result.success).toBe(true);
+                expect(result.movedTo).toBeDefined();
+                expect(result.movedTo.row).toBe(2);
+                expect(result.movedTo.col).toBe(3);
+            });
+        });
+
+        describe('2 pieces per hex limit', () => {
+            it('should allow movement to empty hex', () => {
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [];
+
+                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players);
+
+                expect(result.success).toBe(true);
+            });
+
+            it('should allow movement to hex with 1 allied piece', () => {
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [{ type: 'village', owner: 'p1', color: 'red' }];
+
+                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players);
+
+                expect(result.success).toBe(true);
+                expect(board[2][3].pieces.length).toBe(2);
+            });
+
+            it('should block movement to hex with 2 allied pieces', () => {
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [
+                    { type: 'village', owner: 'p1', color: 'red' },
+                    { type: 'knight', owner: 'p1', color: 'red' }
+                ];
+
+                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players);
+
+                expect(result.success).toBe(false);
+                expect(result.message).toContain('2 pieces');
+            });
+
+            it('should block movement that would result in 3 pieces (1 allied + 1 enemy without combat)', () => {
+                // 1 knight moving to hex with 1 allied structure + 1 enemy knight
+                // Since only 1 knight arrives, no combat occurs, would be 3 pieces
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [
+                    { type: 'village', owner: 'p1', color: 'red' },
+                    { type: 'knight', owner: 'p2', color: 'blue' }
+                ];
+
+                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players);
+
+                expect(result.success).toBe(false);
+                expect(result.message).toContain('2 pieces');
+            });
+
+            it('should block movement to hex with enemy village + enemy knight', () => {
+                // 1 knight moving to hex with 1 enemy village + 1 enemy knight
+                // Since only 1 knight arrives, no combat, would be 3 pieces
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [
+                    { type: 'village', owner: 'p2', color: 'blue' },
+                    { type: 'knight', owner: 'p2', color: 'blue' }
+                ];
+
+                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players);
+
+                expect(result.success).toBe(false);
+                expect(result.message).toContain('2 pieces');
+            });
+
+            it('should allow movement when combat will reduce pieces to 2', () => {
+                // 2 knights at origin, 1 moves to hex with enemy village
+                // Combat destroys village, leaving 1 knight = OK
+                const enemy = createMockPlayer('p2', 'blue');
+                players.p2 = enemy;
+
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [
+                    { type: 'knight', owner: 'p1', color: 'red' },
+                    { type: 'knight', owner: 'p1', color: 'red' }
+                ];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [{ type: 'village', owner: 'p2', color: 'blue' }];
+
+                // Move first knight
+                const result1 = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players);
+                expect(result1.success).toBe(true);
+
+                // Move second knight - now has 2 knights, combat destroys village
+                const result2 = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players);
+                expect(result2.success).toBe(true);
+                expect(board[2][3].pieces.filter(p => p.type === 'knight').length).toBe(2);
+                expect(board[2][3].pieces.filter(p => p.type === 'village').length).toBe(0);
+            });
+        });
     });
 
     describe('processCombat', () => {
