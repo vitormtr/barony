@@ -36,6 +36,7 @@ export class Sessions {
             gameStarted: false,
             leaderId: socket.id,  // Leader is the room creator
             lockedForEntry: false, // Block entry after random distribution
+            gameHistory: [], // Synchronized game log for all players
             // Phase 2: initial placement
             initialPlacementState: {
                 round: 0,           // 0 = first round, 1 = second round (reverse order)
@@ -69,6 +70,29 @@ export class Sessions {
     isLeader(socketId, roomId) {
         const session = this.session[roomId];
         return session && session.leaderId === socketId;
+    }
+
+    // Add entry to game history and broadcast to all players
+    addHistoryEntry(session, io, roomId, action, playerColor, details = '') {
+        const entry = {
+            action,
+            playerColor,
+            details,
+            timestamp: Date.now()
+        };
+
+        if (!session.gameHistory) {
+            session.gameHistory = [];
+        }
+
+        // Keep max 50 entries
+        session.gameHistory.unshift(entry);
+        if (session.gameHistory.length > 50) {
+            session.gameHistory.pop();
+        }
+
+        // Broadcast to all players in room
+        io.to(roomId).emit('historyEntry', entry);
     }
 
     // Get available colors for a room
@@ -326,6 +350,9 @@ export class Sessions {
             message: 'Initial placement complete! Starting battle phase!'
         });
 
+        // Add game start history entry
+        this.addHistoryEntry(session, io, roomId, 'gameStart', session.playerOnTurn.color, 'Battle phase');
+
         console.log(`Initial placement phase complete in room ${roomId}. Starting battle.`);
 
         return { success: true, phaseComplete: true };
@@ -375,6 +402,8 @@ export class Sessions {
     actionRecruitment(session, player, payload, io, roomId) {
         const result = BattleActions.executeRecruitment(session.boardState, player, payload, session.players);
         if (result.success) {
+            const knightCount = result.knightsRecruited || payload.knightCount || 2;
+            this.addHistoryEntry(session, io, roomId, 'recruitment', player.color, `${knightCount} knight${knightCount > 1 ? 's' : ''}`);
             this.emitBoardUpdate(session, io, roomId);
         }
         return result;
@@ -401,6 +430,12 @@ export class Sessions {
         }
 
         if (result.success) {
+            const from = payload.from;
+            const to = payload.to;
+            this.addHistoryEntry(session, io, roomId, 'movement', player.color, `(${from.row},${from.col}) → (${to.row},${to.col})`);
+            if (result.combatResult && result.combatResult.destroyed) {
+                this.addHistoryEntry(session, io, roomId, 'combat', player.color, result.combatResult.destroyed.join(', '));
+            }
             this.emitBoardUpdate(session, io, roomId);
         }
         return result;
@@ -410,6 +445,7 @@ export class Sessions {
     actionConstruction(session, player, payload, io, roomId) {
         const result = BattleActions.executeConstruction(session.boardState, player, payload, session.players);
         if (result.success) {
+            this.addHistoryEntry(session, io, roomId, 'construction', player.color, payload.buildType || 'village');
             this.emitBoardUpdate(session, io, roomId);
         }
         return result;
@@ -419,6 +455,7 @@ export class Sessions {
     actionNewCity(session, player, payload, io, roomId) {
         const result = BattleActions.executeNewCity(session.boardState, player, payload, session.players);
         if (result.success) {
+            this.addHistoryEntry(session, io, roomId, 'newCity', player.color, `(${payload.row},${payload.col})`);
             // Check victory condition
             if (result.checkVictory) {
                 const victoryResult = this.checkVictoryCondition(session, player, io, roomId);
@@ -435,6 +472,7 @@ export class Sessions {
     actionExpedition(session, player, payload, io, roomId) {
         const result = BattleActions.executeExpedition(session.boardState, player, payload, session.players);
         if (result.success) {
+            this.addHistoryEntry(session, io, roomId, 'expedition', player.color, `(${payload.row},${payload.col})`);
             this.emitBoardUpdate(session, io, roomId);
         }
         return result;
@@ -444,6 +482,7 @@ export class Sessions {
     actionNobleTitle(session, player, payload, io, roomId) {
         const result = BattleActions.executeNobleTitle(session.boardState, player, payload, session.players);
         if (result.success) {
+            this.addHistoryEntry(session, io, roomId, 'nobleTitle', player.color, result.newTitle || 'Promoted');
             // Check victory condition
             if (result.checkVictory) {
                 const victoryResult = this.checkVictoryCondition(session, player, io, roomId);
@@ -528,6 +567,9 @@ export class Sessions {
             console.log(`Game ended in room ${roomId}. Winner: ${result.winner.color}`);
             return;
         }
+
+        // Add history entry for turn change
+        this.addHistoryEntry(session, io, roomId, 'turnEnd', result.turnInfo.playerColor, `${result.turnInfo.playerName}'s turn`);
 
         // Emit turn change
         io.to(roomId).emit('turnChanged', {
@@ -919,6 +961,7 @@ export class Sessions {
             boardState: session.boardState,
             gamePhase: session.gamePhase,
             isLeader: result.isLeader,
+            gameHistory: session.gameHistory || [],
             currentTurn: session.playerOnTurn ? {
                 currentPlayerId: session.playerOnTurn.id,
                 currentPlayerColor: session.playerOnTurn.color
@@ -1112,6 +1155,7 @@ export class Sessions {
             gameStarted: true,
             leaderId: socket.id,
             lockedForEntry: true, // Loaded games are locked
+            gameHistory: [], // Start fresh history for loaded game
             initialPlacementState: {
                 round: 0,
                 turnOrder: [],

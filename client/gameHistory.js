@@ -95,7 +95,7 @@ export function initGameHistory() {
   });
 }
 
-export function addHistoryEntry(action, playerColor, details = '') {
+export function addHistoryEntry(action, playerColor, details = '', timestamp = null) {
   if (!historyList) return;
 
   const entry = document.createElement('li');
@@ -103,7 +103,7 @@ export function addHistoryEntry(action, playerColor, details = '') {
 
   const icon = ACTION_ICONS[action] || '•';
   const actionName = ACTION_NAMES[action] || action;
-  const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const time = timestamp || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   entry.innerHTML = `
     <span class="entry-icon">${icon}</span>
@@ -124,6 +124,19 @@ export function addHistoryEntry(action, playerColor, details = '') {
   // Scroll to top
   const content = historyContainer.querySelector('.history-content');
   content.scrollTop = 0;
+}
+
+// Load multiple history entries (for rejoining)
+export function loadHistory(entries) {
+  if (!entries || !entries.length) return;
+
+  // Entries are already sorted newest first, so add them in reverse order
+  // so the oldest entry gets added first (at top), then newer ones push it down
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i];
+    const time = new Date(entry.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    addHistoryEntry(entry.action, entry.playerColor, entry.details, time);
+  }
 }
 
 export function clearHistory() {

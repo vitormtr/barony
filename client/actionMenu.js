@@ -3,7 +3,6 @@ import { socket, player, emitRequestPlayerData } from "./ClientSocketEvents.js";
 import { showError, showSuccess, showWarning, showInfo } from "./notifications.js";
 import { isMyTurn } from "./turnIndicator.js";
 import { getCurrentPhase } from "./pieceMenu.js";
-import { addHistoryEntry } from "./gameHistory.js";
 
 let contextMenuElement = null;
 let actionState = {
@@ -382,9 +381,6 @@ function doRecruitment(hexData, knightCount) {
   });
 
   socket.once('battleActionResult', (result) => {
-    if (result.success) {
-      addHistoryEntry('recruitment', player?.color, `${knightCount} knight${knightCount > 1 ? 's' : ''}`);
-    }
     handleActionResult(result);
   });
 }
@@ -505,12 +501,6 @@ function performMovement(from, to) {
       actionState.movedKnights.push({ row: to.row, col: to.col });
       emitRequestPlayerData();
 
-      // Add to history
-      addHistoryEntry('movement', player?.color, `(${from.row},${from.col}) → (${to.row},${to.col})`);
-      if (result.combatResult?.occurred) {
-        addHistoryEntry('combat', player?.color, result.combatResult.destroyed?.join(', ') || 'Won');
-      }
-
       if (actionState.movementsLeft > 0) {
         showSuccess(`Movement done! ${actionState.movementsLeft} movement(s) remaining.`);
         showInfo('Click another hex to move or wait for turn to end.');
@@ -565,9 +555,6 @@ function showConstructionOptions(hex, hexData) {
       });
 
       socket.once('battleActionResult', (result) => {
-        if (result.success) {
-          addHistoryEntry('construction', player?.color, buildType);
-        }
         handleActionResult(result);
       });
     });
@@ -583,9 +570,6 @@ function executeNewCity(hexData) {
   });
 
   socket.once('battleActionResult', (result) => {
-    if (result.success) {
-      addHistoryEntry('newCity', player?.color, `(${hexData.row},${hexData.col})`);
-    }
     handleActionResult(result);
   });
 }
@@ -599,9 +583,6 @@ function executeExpedition(hexData) {
   });
 
   socket.once('battleActionResult', (result) => {
-    if (result.success) {
-      addHistoryEntry('expedition', player?.color, `(${hexData.row},${hexData.col})`);
-    }
     handleActionResult(result);
   });
 }
@@ -632,9 +613,6 @@ function showNobleTitleConfirmation() {
     menu.remove();
     socket.emit('battleAction', { action: 'nobleTitle' });
     socket.once('battleActionResult', (result) => {
-      if (result.success) {
-        addHistoryEntry('nobleTitle', player?.color, 'Promoted');
-      }
       handleActionResult(result);
     });
   });

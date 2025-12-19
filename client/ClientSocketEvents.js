@@ -23,7 +23,7 @@ import { initBattlePhase, onTurnChanged as actionMenuTurnChanged, hideActionMenu
 import { createTitleCard, updateTitleCard, removeTitleCard } from './titleCard.js';
 import { saveToLocal, startAutoSave, updateGameState, addLocalSaveButtons } from './localSave.js';
 import { showUIToggle, hideUIToggle } from './uiToggle.js';
-import { initGameHistory, addHistoryEntry, showHistory, hideHistory, clearHistory } from './gameHistory.js';
+import { initGameHistory, addHistoryEntry, showHistory, hideHistory, clearHistory, loadHistory } from './gameHistory.js';
 
 export const socket = io();
 export let player = null;
@@ -119,7 +119,14 @@ socket.on('loadedGameReady', handleLoadedGameReady);
 socket.on('playerClaimedColor', handlePlayerClaimedColor);
 socket.on('loadedGameInfo', handleLoadedGameInfo);
 socket.on('loadedGameColorSelect', handleLoadedGameColorSelect);
+socket.on('historyEntry', handleHistoryEntry);
 
+// Handle server-side history entry
+function handleHistoryEntry(entry) {
+  // Format timestamp from server
+  const time = new Date(entry.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  addHistoryEntry(entry.action, entry.playerColor, entry.details, time);
+}
 
 export function emitJoinRoom(roomId) {
   socket.emit(CONFIG.SOCKET.EVENTS.JOIN_ROOM, roomId);
@@ -284,8 +291,7 @@ function handleTurnChanged(turnData) {
   actionMenuTurnChanged();
   latestTurnData = turnData;
   saveGameStateLocally();
-  // Add to history
-  addHistoryEntry('turnEnd', turnData.currentPlayerColor, `${turnData.currentPlayerName}'s turn`);
+  // History entries now come from server via historyEntry event
 }
 
 function handlePlayerDisconnected(data) {
@@ -422,10 +428,9 @@ function handleInitialPlacementComplete(data) {
   setTimeout(() => {
     initBattlePhase();
     createTitleCard();
-    // Initialize game history
+    // Initialize game history (entries come from server)
     initGameHistory();
     showHistory();
-    addHistoryEntry('gameStart', player?.color || 'blue', 'Battle phase');
     // Start auto-save and add download button
     startAutoSave();
     addLocalSaveButtons();
@@ -530,10 +535,12 @@ function handleRejoinSuccess(data) {
     setTimeout(() => {
       initBattlePhase();
       createTitleCard();
-      // Initialize game history for loaded game
+      // Initialize game history and load existing entries
       initGameHistory();
       showHistory();
-      addHistoryEntry('gameStart', player?.color || 'blue', 'Game loaded');
+      if (data.gameHistory && data.gameHistory.length > 0) {
+        loadHistory(data.gameHistory);
+      }
       // Trigger turn changed to setup action menu correctly
       actionMenuTurnChanged();
       // Start auto-save and add download button
