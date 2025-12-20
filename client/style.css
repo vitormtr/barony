@@ -1024,6 +1024,135 @@ button:active {
 }
 
 /* ========================================
+   AUDIO CONTROLS
+   ======================================== */
+
+.audio-controls {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 200;
+}
+
+.audio-toggle-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(26, 26, 46, 0.95), rgba(44, 44, 84, 0.95));
+  border: 2px solid var(--color-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.audio-toggle-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.audio-icon {
+  font-size: 1.2rem;
+}
+
+.audio-panel {
+  position: absolute;
+  bottom: 54px;
+  right: 0;
+  background: linear-gradient(145deg, rgba(26, 26, 46, 0.98), rgba(44, 44, 84, 0.98));
+  border: 2px solid var(--color-surface-light);
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 180px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.audio-panel.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.audio-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.audio-row:last-child {
+  margin-bottom: 0;
+}
+
+.audio-label {
+  font-size: 0.75rem;
+  color: var(--color-text);
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.audio-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--color-surface-light);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.audio-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.audio-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.audio-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  border: none;
+  cursor: pointer;
+}
+
+.audio-mute-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid var(--color-surface-light);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.audio-mute-btn:hover {
+  background: var(--color-surface-light);
+}
+
+/* ========================================
    RESPONSIVIDADE
    ======================================== */
 
