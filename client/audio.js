@@ -113,13 +113,14 @@ const SFX_DEFINITIONS = {
 const sfxBuffers = {};
 
 // Medieval music tracks from Internet Archive (CC0 - Public Domain)
+// Using direct URLs that don't require redirects
 const MUSIC_TRACKS = [
-  'https://ia800503.us.archive.org/6/items/medieval-instrumental-background-music/Dancing%20at%20the%20Inn.mp3',
-  'https://ia800503.us.archive.org/6/items/medieval-instrumental-background-music/Nordic%20Wist.mp3',
-  'https://ia800503.us.archive.org/6/items/medieval-instrumental-background-music/Royal%20Coupling.mp3',
-  'https://ia800503.us.archive.org/6/items/medieval-instrumental-background-music/The%20Britons.mp3',
-  'https://ia800503.us.archive.org/6/items/medieval-instrumental-background-music/Cold%20Journey.mp3',
-  'https://ia800503.us.archive.org/6/items/medieval-instrumental-background-music/Celebration.mp3'
+  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/Dancing%20at%20the%20Inn.mp3',
+  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/Nordic%20Wist.mp3',
+  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/Royal%20Coupling.mp3',
+  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/The%20Britons.mp3',
+  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/Cold%20Journey.mp3',
+  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/Celebration.mp3'
 ];
 
 let currentTrackIndex = 0;
@@ -136,11 +137,18 @@ function initSoundEffects() {
 
 // Play a sound effect
 export function playSfx(name) {
-  if (!sfxEnabled) return;
+  if (!sfxEnabled) {
+    return;
+  }
 
   const ctx = getAudioContext();
-  if (!ctx || ctx.state === 'suspended') {
-    ctx?.resume();
+  if (!ctx) {
+    console.warn('No audio context');
+    return;
+  }
+
+  if (ctx.state === 'suspended') {
+    ctx.resume();
   }
 
   if (!sfxBuffers[name]) {
@@ -148,40 +156,68 @@ export function playSfx(name) {
   }
 
   const buffer = sfxBuffers[name];
-  if (!buffer) return;
+  if (!buffer) {
+    console.warn('No buffer for sound:', name);
+    return;
+  }
 
-  const source = ctx.createBufferSource();
-  const gainNode = ctx.createGain();
+  try {
+    const source = ctx.createBufferSource();
+    const gainNode = ctx.createGain();
 
-  source.buffer = buffer;
-  gainNode.gain.value = sfxVolume;
+    source.buffer = buffer;
+    gainNode.gain.value = sfxVolume;
 
-  source.connect(gainNode);
-  gainNode.connect(ctx.destination);
-  source.start();
+    source.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    source.start();
+    console.log('Playing SFX:', name);
+  } catch (e) {
+    console.error('Error playing SFX:', e);
+  }
 }
 
 // Start background music
 export function startMusic() {
-  if (!musicEnabled || currentMusic) return;
+  if (!musicEnabled) {
+    console.log('Music disabled, not starting');
+    return;
+  }
+  if (currentMusic) {
+    console.log('Music already playing');
+    return;
+  }
+
+  console.log('Starting background music...');
 
   currentMusic = new Audio();
-  currentMusic.crossOrigin = 'anonymous';
   currentMusic.volume = musicVolume;
 
   // Play random track
   currentTrackIndex = Math.floor(Math.random() * MUSIC_TRACKS.length);
-  currentMusic.src = MUSIC_TRACKS[currentTrackIndex];
+  const trackUrl = MUSIC_TRACKS[currentTrackIndex];
+  console.log('Loading track:', trackUrl);
+  currentMusic.src = trackUrl;
+
+  // Debug events
+  currentMusic.addEventListener('canplaythrough', () => {
+    console.log('Music ready to play');
+  });
+
+  currentMusic.addEventListener('playing', () => {
+    console.log('Music now playing');
+  });
 
   // Loop through tracks
   currentMusic.addEventListener('ended', () => {
     currentTrackIndex = (currentTrackIndex + 1) % MUSIC_TRACKS.length;
+    console.log('Track ended, playing next:', MUSIC_TRACKS[currentTrackIndex]);
     currentMusic.src = MUSIC_TRACKS[currentTrackIndex];
-    currentMusic.play().catch(() => {});
+    currentMusic.play().catch((e) => console.warn('Failed to play next track:', e));
   });
 
   currentMusic.addEventListener('error', (e) => {
-    console.warn('Music failed to load, trying next track');
+    console.error('Music error:', e, currentMusic.error);
     currentTrackIndex = (currentTrackIndex + 1) % MUSIC_TRACKS.length;
     currentMusic.src = MUSIC_TRACKS[currentTrackIndex];
     currentMusic.play().catch(() => {});
@@ -239,12 +275,19 @@ export function getSfxVolume() { return sfxVolume; }
 
 // Resume audio context (call on user interaction)
 export function resumeAudio() {
+  console.log('Resuming audio...');
   const ctx = getAudioContext();
   if (ctx?.state === 'suspended') {
-    ctx.resume();
+    ctx.resume().then(() => console.log('AudioContext resumed'));
   }
+  // Try to start music if not already playing
   if (musicEnabled && !currentMusic) {
     startMusic();
+  }
+  // If music exists but is paused, try to play
+  if (currentMusic && currentMusic.paused) {
+    console.log('Attempting to play paused music');
+    currentMusic.play().catch((e) => console.warn('Still cannot play:', e));
   }
 }
 
