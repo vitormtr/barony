@@ -11,7 +11,7 @@ let actionState = {
   currentAction: null,
   adjacentKnights: [],  // Adjacent knights to clicked hex
   targetHex: null,      // Destination hex for movement
-  movedKnights: []      // Positions where knights have moved TO this turn
+  movedKnightsCount: {} // Count of knights that moved TO each position (key: "row,col")
 };
 
 const ACTIONS = {
@@ -85,12 +85,6 @@ function getAdjacentPlayerKnights(row, col) {
     const adjRow = row + dRow;
     const adjCol = col + dCol;
 
-    // Check if a knight from this position has already moved this turn
-    const alreadyMoved = actionState.movedKnights.some(
-      k => k.row === adjRow && k.col === adjCol
-    );
-    if (alreadyMoved) return;
-
     const neighbor = document.querySelector(`.hexagon[data-row="${adjRow}"][data-col="${adjCol}"]`);
     if (neighbor) {
       const neighborData = JSON.parse(neighbor.dataset.hex);
@@ -99,7 +93,13 @@ function getAdjacentPlayerKnights(row, col) {
           p.type === 'knight' && p.color === player?.color
         );
         if (playerKnights.length > 0) {
-          knights.push({ row: adjRow, col: adjCol, count: playerKnights.length });
+          // Check how many knights from this position have already moved
+          const key = `${adjRow},${adjCol}`;
+          const movedCount = actionState.movedKnightsCount[key] || 0;
+          const availableCount = playerKnights.length - movedCount;
+          if (availableCount > 0) {
+            knights.push({ row: adjRow, col: adjCol, count: availableCount });
+          }
         }
       }
     }
@@ -262,7 +262,7 @@ function hideAllMenus() {
   });
 
   // Reset action state if movement was started but no knight moved yet
-  if (hasKnightSelectionMenu && actionState.currentAction === 'movement' && actionState.movedKnights.length === 0) {
+  if (hasKnightSelectionMenu && actionState.currentAction === 'movement' && Object.keys(actionState.movedKnightsCount).length === 0) {
     resetActionState(true);
   }
 }
@@ -475,7 +475,7 @@ function showKnightSelectionMenu(hex, hexData) {
       menu.remove();
       if (btn.classList.contains('cancel')) {
         // Reset action state if no movement was made yet
-        if (actionState.movedKnights.length === 0) {
+        if (Object.keys(actionState.movedKnightsCount).length === 0) {
           resetActionState(true);
         }
         return;
@@ -497,8 +497,9 @@ function performMovement(from, to) {
   socket.once('battleActionResult', (result) => {
     if (result.success) {
       actionState.movementsLeft--;
-      // Track that a knight moved TO this position (can't move again this turn)
-      actionState.movedKnights.push({ row: to.row, col: to.col });
+      // Track that a knight moved TO this position (increment counter)
+      const key = `${to.row},${to.col}`;
+      actionState.movedKnightsCount[key] = (actionState.movedKnightsCount[key] || 0) + 1;
       emitRequestPlayerData();
 
       if (actionState.movementsLeft > 0) {
@@ -514,7 +515,7 @@ function performMovement(from, to) {
     } else {
       showError(result.message);
       // Reset state if no movement was made yet
-      if (actionState.movedKnights.length === 0) {
+      if (Object.keys(actionState.movedKnightsCount).length === 0) {
         resetActionState(true);
       }
     }
@@ -668,13 +669,13 @@ function resetActionState(full = false) {
       currentAction: null,
       adjacentKnights: [],
       targetHex: null,
-      movedKnights: []
+      movedKnightsCount: {}
     };
   } else {
     actionState.selectedKnights = [];
     actionState.adjacentKnights = [];
     actionState.targetHex = null;
-    // Preserve movementsLeft, currentAction, and movedKnights during movement
+    // Preserve movementsLeft, currentAction, and movedKnightsCount during movement
   }
   // Remove highlights
   document.querySelectorAll('.hexagon').forEach(hex => {

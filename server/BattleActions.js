@@ -53,9 +53,9 @@ export function executeRecruitment(boardState, player, payload, players) {
 
 /**
  * MOVEMENT: Move a knight to adjacent hex (with combat)
- * movedKnights tracks positions where knights have already moved FROM this turn
+ * movedKnightsCount tracks how many knights have moved TO each position this turn
  */
-export function executeMovement(boardState, player, payload, players, movedKnights = []) {
+export function executeMovement(boardState, player, payload, players, movedKnightsCount = {}) {
     const { from, to } = payload;
     const fromHex = boardState[from.row]?.[from.col];
     const toHex = boardState[to.row]?.[to.col];
@@ -64,14 +64,15 @@ export function executeMovement(boardState, player, payload, players, movedKnigh
         return { success: false, message: 'Invalid hex!' };
     }
 
-    const knightIndex = fromHex.pieces?.findIndex(p => p.type === 'knight' && p.color === player.color);
-    if (knightIndex === -1 || knightIndex === undefined) {
+    const playerKnights = fromHex.pieces?.filter(p => p.type === 'knight' && p.color === player.color) || [];
+    if (playerKnights.length === 0) {
         return { success: false, message: 'No knight of yours in this hex!' };
     }
 
-    // Check if a knight from this hex has already moved this turn
-    const alreadyMoved = movedKnights.some(k => k.row === from.row && k.col === from.col);
-    if (alreadyMoved) {
+    // Check if all knights from this hex have already moved this turn
+    const key = `${from.row},${from.col}`;
+    const movedCount = movedKnightsCount[key] || 0;
+    if (movedCount >= playerKnights.length) {
         return { success: false, message: 'This knight already moved this turn!' };
     }
 
@@ -129,6 +130,8 @@ export function executeMovement(boardState, player, payload, players, movedKnigh
         return { success: false, message: 'Cannot exceed 2 pieces per hex!' };
     }
 
+    // Find the knight to move
+    const knightIndex = fromHex.pieces.findIndex(p => p.type === 'knight' && p.color === player.color);
     const knight = fromHex.pieces.splice(knightIndex, 1)[0];
     if (!toHex.pieces) toHex.pieces = [];
     toHex.pieces.push(knight);

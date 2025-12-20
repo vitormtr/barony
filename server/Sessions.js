@@ -411,9 +411,9 @@ export class Sessions {
 
     // MOVEMENT: Move a knight to adjacent hex (with combat)
     actionMovement(session, player, payload, io, roomId) {
-        // Initialize movedKnights array if not exists
-        if (!session.movedKnights) {
-            session.movedKnights = [];
+        // Initialize movedKnightsCount object if not exists
+        if (!session.movedKnightsCount) {
+            session.movedKnightsCount = {};
         }
 
         const result = BattleActions.executeMovement(
@@ -421,12 +421,13 @@ export class Sessions {
             player,
             payload,
             session.players,
-            session.movedKnights
+            session.movedKnightsCount
         );
 
         if (result.success && result.movedTo) {
-            // Track the destination position as "moved"
-            session.movedKnights.push(result.movedTo);
+            // Track the destination position - increment counter
+            const key = `${result.movedTo.row},${result.movedTo.col}`;
+            session.movedKnightsCount[key] = (session.movedKnightsCount[key] || 0) + 1;
         }
 
         if (result.success) {
@@ -552,7 +553,7 @@ export class Sessions {
         }
 
         // Clear moved knights tracking for next turn
-        session.movedKnights = [];
+        session.movedKnightsCount = {};
 
         // Process end of turn
         const result = TurnManager.processEndTurn(session, socket.id);

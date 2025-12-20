@@ -323,28 +323,28 @@ describe('BattleActions', () => {
         });
 
         describe('knight movement tracking (same knight cannot move twice)', () => {
-            it('should allow first movement with empty movedKnights', () => {
+            it('should allow first movement with empty movedKnightsCount', () => {
                 board[2][2].texture = 'plain.png';
                 board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
                 board[2][3].texture = 'plain.png';
                 board[2][3].pieces = [];
 
-                const movedKnights = [];
-                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnights);
+                const movedKnightsCount = {};
+                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnightsCount);
 
                 expect(result.success).toBe(true);
                 expect(result.movedTo).toEqual({ row: 2, col: 3 });
             });
 
-            it('should block movement if knight already moved from that position this turn', () => {
+            it('should block movement if all knights already moved from that position this turn', () => {
                 board[2][2].texture = 'plain.png';
                 board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
                 board[2][3].texture = 'plain.png';
                 board[2][3].pieces = [];
 
-                // Simulate that a knight already moved TO position (2,2)
-                const movedKnights = [{ row: 2, col: 2 }];
-                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnights);
+                // Simulate that a knight already moved TO position (2,2) and there's only 1 knight
+                const movedKnightsCount = { '2,2': 1 };
+                const result = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnightsCount);
 
                 expect(result.success).toBe(false);
                 expect(result.message).toContain('already moved');
@@ -361,15 +361,15 @@ describe('BattleActions', () => {
                 board[3][3].texture = 'plain.png';
                 board[3][3].pieces = [];
 
-                const movedKnights = [];
+                const movedKnightsCount = {};
 
                 // Move first knight
-                const result1 = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnights);
+                const result1 = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnightsCount);
                 expect(result1.success).toBe(true);
-                movedKnights.push(result1.movedTo);
+                movedKnightsCount[`${result1.movedTo.row},${result1.movedTo.col}`] = 1;
 
                 // Move second knight from different position
-                const result2 = executeMovement(board, player, { from: { row: 3, col: 2 }, to: { row: 3, col: 3 } }, players, movedKnights);
+                const result2 = executeMovement(board, player, { from: { row: 3, col: 2 }, to: { row: 3, col: 3 } }, players, movedKnightsCount);
                 expect(result2.success).toBe(true);
             });
 
@@ -382,17 +382,39 @@ describe('BattleActions', () => {
                 board[2][4].texture = 'plain.png';
                 board[2][4].pieces = [];
 
-                const movedKnights = [];
+                const movedKnightsCount = {};
 
                 // Move knight from (2,2) to (2,3)
-                const result1 = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnights);
+                const result1 = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnightsCount);
                 expect(result1.success).toBe(true);
-                movedKnights.push(result1.movedTo); // Track the destination (2,3)
+                movedKnightsCount[`${result1.movedTo.row},${result1.movedTo.col}`] = 1; // Track the destination (2,3)
 
                 // Try to move the same knight again from (2,3) to (2,4)
-                const result2 = executeMovement(board, player, { from: { row: 2, col: 3 }, to: { row: 2, col: 4 } }, players, movedKnights);
+                const result2 = executeMovement(board, player, { from: { row: 2, col: 3 }, to: { row: 2, col: 4 } }, players, movedKnightsCount);
                 expect(result2.success).toBe(false);
                 expect(result2.message).toContain('already moved');
+            });
+
+            it('should allow moving second knight from hex where another knight moved TO', () => {
+                // Setup: one knight in (2,2), one knight in (2,3)
+                board[2][2].texture = 'plain.png';
+                board[2][2].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][3].texture = 'plain.png';
+                board[2][3].pieces = [{ type: 'knight', owner: 'p1', color: 'red' }];
+                board[2][4].texture = 'plain.png';
+                board[2][4].pieces = [];
+
+                const movedKnightsCount = {};
+
+                // Move knight from (2,2) to (2,3) - now (2,3) has 2 knights
+                const result1 = executeMovement(board, player, { from: { row: 2, col: 2 }, to: { row: 2, col: 3 } }, players, movedKnightsCount);
+                expect(result1.success).toBe(true);
+                movedKnightsCount['2,3'] = 1; // One knight moved TO (2,3)
+
+                // The original knight in (2,3) should still be able to move to (2,4)
+                // Now (2,3) has 2 knights, but only 1 has moved
+                const result2 = executeMovement(board, player, { from: { row: 2, col: 3 }, to: { row: 2, col: 4 } }, players, movedKnightsCount);
+                expect(result2.success).toBe(true);
             });
 
             it('should return movedTo position on successful movement', () => {
