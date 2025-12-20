@@ -113,7 +113,7 @@ const SFX_DEFINITIONS = {
 const sfxBuffers = {};
 
 // Local medieval music file
-const MUSIC_FILE = './audio/Medieval Music for Focus & Relaxation _ The Gray Wizard\'s Journey.mp3';
+const MUSIC_FILE = './audio/medieval-music.mp3';
 
 // Initialize sound effects
 function initSoundEffects() {
