@@ -59,13 +59,6 @@ export function setMusicVolume(vol) {
 export function isMusicEnabled() { return musicEnabled; }
 export function getMusicVolume() { return musicVolume; }
 
-// Stub functions for compatibility
-export function playSfx() {}
-export function toggleSfx() { return false; }
-export function setSfxVolume() {}
-export function isSfxEnabled() { return false; }
-export function getSfxVolume() { return 0; }
-
 // Resume audio (call on user interaction)
 export function resumeAudio() {
   if (musicEnabled && !currentMusic) {

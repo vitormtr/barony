@@ -24,7 +24,7 @@ import { createTitleCard, updateTitleCard, removeTitleCard } from './titleCard.j
 import { saveToLocal, startAutoSave, updateGameState, addLocalSaveButtons } from './localSave.js';
 import { showUIToggle, hideUIToggle } from './uiToggle.js';
 import { initGameHistory, addHistoryEntry, showHistory, hideHistory, clearHistory, loadHistory } from './gameHistory.js';
-import { initAudio, playSfx, startMusic, stopMusic } from './audio.js';
+import { initAudio, startMusic, stopMusic } from './audio.js';
 import { createAudioControls, showAudioControls } from './audioControls.js';
 
 export const socket = io();
@@ -128,9 +128,6 @@ function handleHistoryEntry(entry) {
   // Format timestamp from server
   const time = new Date(entry.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   addHistoryEntry(entry.action, entry.playerColor, entry.details, time);
-
-  // Play sound effect for this action
-  playSfx(entry.action);
 }
 
 export function emitJoinRoom(roomId) {
@@ -469,9 +466,8 @@ function handleDukeAnnounced(data) {
 function handleGameEnded(data) {
   console.log('Game ended:', data);
   hideActionMenu();
-  // Stop music and play victory sound
+  // Stop music
   stopMusic();
-  playSfx('victory');
   showGameEndScreen(data);
 }
 
