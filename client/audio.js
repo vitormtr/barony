@@ -112,18 +112,8 @@ const SFX_DEFINITIONS = {
 // Pre-generated sound buffers
 const sfxBuffers = {};
 
-// Medieval music tracks from Internet Archive (CC0 - Public Domain)
-// Using direct URLs that don't require redirects
-const MUSIC_TRACKS = [
-  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/Dancing%20at%20the%20Inn.mp3',
-  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/Nordic%20Wist.mp3',
-  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/Royal%20Coupling.mp3',
-  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/The%20Britons.mp3',
-  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/Cold%20Journey.mp3',
-  'https://ia800402.us.archive.org/3/items/medieval-instrumental-background-music/Celebration.mp3'
-];
-
-let currentTrackIndex = 0;
+// Local medieval music file
+const MUSIC_FILE = './audio/Medieval Music for Focus & Relaxation _ The Gray Wizard\'s Journey.mp3';
 
 // Initialize sound effects
 function initSoundEffects() {
@@ -192,12 +182,10 @@ export function startMusic() {
 
   currentMusic = new Audio();
   currentMusic.volume = musicVolume;
+  currentMusic.loop = true; // Loop the music continuously
 
-  // Play random track
-  currentTrackIndex = Math.floor(Math.random() * MUSIC_TRACKS.length);
-  const trackUrl = MUSIC_TRACKS[currentTrackIndex];
-  console.log('Loading track:', trackUrl);
-  currentMusic.src = trackUrl;
+  console.log('Loading music:', MUSIC_FILE);
+  currentMusic.src = MUSIC_FILE;
 
   // Debug events
   currentMusic.addEventListener('canplaythrough', () => {
@@ -208,19 +196,8 @@ export function startMusic() {
     console.log('Music now playing');
   });
 
-  // Loop through tracks
-  currentMusic.addEventListener('ended', () => {
-    currentTrackIndex = (currentTrackIndex + 1) % MUSIC_TRACKS.length;
-    console.log('Track ended, playing next:', MUSIC_TRACKS[currentTrackIndex]);
-    currentMusic.src = MUSIC_TRACKS[currentTrackIndex];
-    currentMusic.play().catch((e) => console.warn('Failed to play next track:', e));
-  });
-
   currentMusic.addEventListener('error', (e) => {
     console.error('Music error:', e, currentMusic.error);
-    currentTrackIndex = (currentTrackIndex + 1) % MUSIC_TRACKS.length;
-    currentMusic.src = MUSIC_TRACKS[currentTrackIndex];
-    currentMusic.play().catch(() => {});
   });
 
   currentMusic.play().catch((e) => {
