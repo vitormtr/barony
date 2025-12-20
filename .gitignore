@@ -24,5 +24,3 @@ build/
 .DS_Store          # macOS
 Thumbs.db          # Windows
 
-# Audio files (too large for GitHub)
-client/audio/
