@@ -92,6 +92,17 @@ export class Sessions {
         if (!session) {
             return { error: 'Room not found!' };
         }
+
+        // If it's a loaded game, return available colors for that flow
+        if (session.loadedGame && session.availableColors?.length > 0) {
+            return {
+                colors: session.availableColors,
+                roomId,
+                loadedGame: true,
+                boardState: session.boardState
+            };
+        }
+
         if (session.lockedForEntry) {
             return { error: 'Entry blocked! The board has already been set up.' };
         }

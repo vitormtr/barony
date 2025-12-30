@@ -1,6 +1,7 @@
-import { emitCreateRoom, emitJoinRoom, emitCreateRoomWithColor, emitJoinRoomWithColor, getSocket } from './ClientSocketEvents.js';
+import { emitCreateRoom, emitJoinRoom, emitCreateRoomWithColor, emitJoinRoomWithColor, emitJoinLoadedGame, getSocket } from './ClientSocketEvents.js';
 import { CONFIG } from './config.js';
 import { domHelper } from './domUtils.js';
+import { showRoomInfo } from './roomInfo.js';
 
 const elements = {
   createRoomBtn: document.getElementById(CONFIG.SELECTORS.CREATE_ROOM),
@@ -51,6 +52,8 @@ function handleJoinRoom() {
   }
 }
 
+let isLoadedGame = false;
+
 function handleAvailableColors(data) {
   if (data.error) {
     import('./notifications.js').then(({ showError }) => {
@@ -58,6 +61,20 @@ function handleAvailableColors(data) {
     });
     return;
   }
+
+  // If it's a loaded game, show the board and use loaded game flow
+  if (data.loadedGame) {
+    isLoadedGame = true;
+    hideMenu();
+    showRoomInfo(data.roomId);
+    // Show the board
+    if (data.boardState) {
+      import('./BoardRender.js').then(({ createBoard }) => {
+        createBoard(data.boardState);
+      });
+    }
+  }
+
   showColorSelectModal(data.colors, data.roomId);
 }
 
@@ -117,7 +134,13 @@ function handleColorSelected(color) {
   if (pendingAction === 'create') {
     emitCreateRoomWithColor(color, playerName);
   } else if (pendingAction === 'join' && pendingRoomId) {
-    emitJoinRoomWithColor(pendingRoomId, color, playerName);
+    if (isLoadedGame) {
+      // Use loaded game flow
+      emitJoinLoadedGame(pendingRoomId, color);
+      isLoadedGame = false;
+    } else {
+      emitJoinRoomWithColor(pendingRoomId, color, playerName);
+    }
   }
 
   pendingAction = null;
