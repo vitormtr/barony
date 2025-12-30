@@ -1,5 +1,5 @@
 // Battle phase actions for Barony game
-import { DIRECTION_MAP, NOBLE_TITLE_COST, RESOURCE_VALUES } from './constants.js';
+import { DIRECTION_MAP, NOBLE_TITLE_COST, RESOURCE_VALUES, TITLE_RANK } from './constants.js';
 import * as BoardLogic from './BoardLogic.js';
 
 /**
@@ -441,17 +441,6 @@ export function executeNobleTitle(boardState, player, payload, players) {
         checkVictory: true
     };
 }
-
-/**
- * Title ranking for comparison (higher = better)
- */
-export const TITLE_RANK = {
-    baron: 0,
-    viscount: 1,
-    count: 2,
-    marquis: 3,
-    duke: 4
-};
 
 /**
  * Calculate player's final score (VP + resources, NOT including title)

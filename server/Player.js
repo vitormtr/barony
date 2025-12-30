@@ -187,7 +187,8 @@ export class Player {
           resourcePoints: this.getTotalResources(),
           title: this.title,
           titleName: this.getTitleName(),
-          victoryPoints: this.victoryPoints
+          victoryPoints: this.victoryPoints,
+          battlesWon: this.battlesWon
         };
     }
 }

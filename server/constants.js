@@ -72,6 +72,15 @@ export const DEFAULT_BOARD_SIZE = {
 // Noble titles in order of progression
 export const NOBLE_TITLES = ['baron', 'viscount', 'count', 'marquis', 'duke'];
 
+// Title ranking for comparison (higher = better)
+export const TITLE_RANK = {
+    baron: 0,
+    viscount: 1,
+    count: 2,
+    marquis: 3,
+    duke: 4
+};
+
 // Noble title display names
 export const TITLE_NAMES = {
     baron: 'Baron',
@@ -88,3 +97,6 @@ export const INITIAL_RESOURCES = {
     mountain: 0,
     plain: 0
 };
+
+// Maximum game history entries to keep
+export const MAX_HISTORY_ENTRIES = 50;

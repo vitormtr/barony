@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import { createEmptyBoard } from './utils.js';
 import { Player } from './Player.js';
-import { GAME_PHASES } from './constants.js';
+import { GAME_PHASES, MAX_HISTORY_ENTRIES } from './constants.js';
 import * as BoardLogic from './BoardLogic.js';
 import * as BattleActions from './BattleActions.js';
 import * as BoardSetup from './BoardSetup.js';
@@ -77,9 +77,8 @@ export class Sessions {
             session.gameHistory = [];
         }
 
-        // Keep max 50 entries
         session.gameHistory.unshift(entry);
-        if (session.gameHistory.length > 50) {
+        if (session.gameHistory.length > MAX_HISTORY_ENTRIES) {
             session.gameHistory.pop();
         }
 

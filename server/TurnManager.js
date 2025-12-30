@@ -9,7 +9,7 @@
  * - Observer Pattern: notifies players of turn changes
  */
 
-import { GAME_PHASES } from './constants.js';
+import { GAME_PHASES, TITLE_RANK } from './constants.js';
 import * as BattleActions from './BattleActions.js';
 
 /**
@@ -140,7 +140,7 @@ export function calculateAllScores(players) {
             name: p.name || p.color,
             score: calculateFinalScore(p),
             title: p.getTitleName(),
-            titleRank: BattleActions.TITLE_RANK[p.title] || 0,
+            titleRank: TITLE_RANK[p.title] || 0,
             citiesBuilt: citiesBuilt,
             battlesWon: p.battlesWon || 0,
             resources: p.getTotalResources(),
