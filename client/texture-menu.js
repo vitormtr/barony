@@ -219,7 +219,11 @@ function findNeighborHex(row, col) {
 }
 
 function getHexTexture(hexElement) {
-  return JSON.parse(hexElement.dataset.hex).texture;
+  try {
+    return JSON.parse(hexElement.dataset.hex).texture;
+  } catch {
+    return null;
+  }
 }
 
 export function addClickEventToHexagons() {

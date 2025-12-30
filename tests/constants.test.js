@@ -1,12 +1,8 @@
 import {
     DIRECTION_MAP,
-    getDirections,
     GAME_PHASES,
-    TEXTURES,
-    TERRAIN_TYPES,
     CITY_VALID_TERRAINS,
     KNIGHT_VALID_TERRAINS,
-    PIECE_TYPES,
     STRUCTURE_TYPES,
     PLAYER_COLORS,
     INITIAL_PIECES,
@@ -44,20 +40,6 @@ describe('Constants', () => {
         });
     });
 
-    describe('getDirections', () => {
-        it('should return ODD directions for odd rows', () => {
-            expect(getDirections(1)).toBe(DIRECTION_MAP.ODD);
-            expect(getDirections(3)).toBe(DIRECTION_MAP.ODD);
-            expect(getDirections(5)).toBe(DIRECTION_MAP.ODD);
-        });
-
-        it('should return EVEN directions for even rows', () => {
-            expect(getDirections(0)).toBe(DIRECTION_MAP.EVEN);
-            expect(getDirections(2)).toBe(DIRECTION_MAP.EVEN);
-            expect(getDirections(4)).toBe(DIRECTION_MAP.EVEN);
-        });
-    });
-
     describe('GAME_PHASES', () => {
         it('should have all game phases', () => {
             expect(GAME_PHASES.WAITING).toBe('waiting');
@@ -69,30 +51,6 @@ describe('Constants', () => {
 
         it('should have 5 phases', () => {
             expect(Object.keys(GAME_PHASES).length).toBe(5);
-        });
-    });
-
-    describe('TEXTURES', () => {
-        it('should have 5 texture types', () => {
-            expect(TEXTURES.length).toBe(5);
-        });
-
-        it('should include all terrain textures with .png extension', () => {
-            expect(TEXTURES).toContain('water.png');
-            expect(TEXTURES).toContain('farm.png');
-            expect(TEXTURES).toContain('mountain.png');
-            expect(TEXTURES).toContain('plain.png');
-            expect(TEXTURES).toContain('forest.png');
-        });
-    });
-
-    describe('TERRAIN_TYPES', () => {
-        it('should have all terrain types without extension', () => {
-            expect(TERRAIN_TYPES.WATER).toBe('water');
-            expect(TERRAIN_TYPES.FARM).toBe('farm');
-            expect(TERRAIN_TYPES.MOUNTAIN).toBe('mountain');
-            expect(TERRAIN_TYPES.PLAIN).toBe('plain');
-            expect(TERRAIN_TYPES.FOREST).toBe('forest');
         });
     });
 
@@ -121,15 +79,6 @@ describe('Constants', () => {
 
         it('should NOT include water', () => {
             expect(KNIGHT_VALID_TERRAINS).not.toContain('water.png');
-        });
-    });
-
-    describe('PIECE_TYPES', () => {
-        it('should have all piece types', () => {
-            expect(PIECE_TYPES.CITY).toBe('city');
-            expect(PIECE_TYPES.STRONGHOLD).toBe('stronghold');
-            expect(PIECE_TYPES.KNIGHT).toBe('knight');
-            expect(PIECE_TYPES.VILLAGE).toBe('village');
         });
     });
 

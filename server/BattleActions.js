@@ -254,8 +254,11 @@ export function executeConstruction(boardState, player, payload, players) {
         return { success: false, message: 'Invalid hex!' };
     }
 
-    const knightIndex = hex.pieces?.findIndex(p => p.type === 'knight' && p.color === player.color);
-    if (knightIndex === -1 || knightIndex === undefined) {
+    if (!hex.pieces) {
+        return { success: false, message: 'No knight of yours in this hex!' };
+    }
+    const knightIndex = hex.pieces.findIndex(p => p.type === 'knight' && p.color === player.color);
+    if (knightIndex === -1) {
         return { success: false, message: 'No knight of yours in this hex!' };
     }
 
@@ -334,8 +337,11 @@ export function executeNewCity(boardState, player, payload, players) {
         return { success: false, message: 'Invalid hex!' };
     }
 
-    const villageIndex = hex.pieces?.findIndex(p => p.type === 'village' && p.color === player.color);
-    if (villageIndex === -1 || villageIndex === undefined) {
+    if (!hex.pieces) {
+        return { success: false, message: 'No village of yours in this hex!' };
+    }
+    const villageIndex = hex.pieces.findIndex(p => p.type === 'village' && p.color === player.color);
+    if (villageIndex === -1) {
         return { success: false, message: 'No village of yours in this hex!' };
     }
 

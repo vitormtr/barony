@@ -72,7 +72,8 @@ function serializePlayers(players) {
             pieces: player.pieces,
             resources: player.resources,
             title: player.title,
-            victoryPoints: player.victoryPoints
+            victoryPoints: player.victoryPoints,
+            battlesWon: player.battlesWon
         };
     }
     return serialized;
@@ -86,16 +87,22 @@ export function listSaves() {
         .filter(f => f.endsWith('.json'))
         .map(filename => {
             const filepath = path.join(SAVES_DIR, filename);
-            const content = JSON.parse(fs.readFileSync(filepath, 'utf-8'));
-            return {
-                filename,
-                savedAt: content.savedAt,
-                roomId: content.roomId,
-                gamePhase: content.gamePhase,
-                playerCount: Object.keys(content.players).length,
-                playerColors: Object.values(content.players).map(p => p.color)
-            };
+            try {
+                const content = JSON.parse(fs.readFileSync(filepath, 'utf-8'));
+                return {
+                    filename,
+                    savedAt: content.savedAt,
+                    roomId: content.roomId,
+                    gamePhase: content.gamePhase,
+                    playerCount: Object.keys(content.players || {}).length,
+                    playerColors: Object.values(content.players || {}).map(p => p.color)
+                };
+            } catch {
+                // Skip corrupted files
+                return null;
+            }
         })
+        .filter(f => f !== null)
         .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt)); // Most recent first
 
     return files;

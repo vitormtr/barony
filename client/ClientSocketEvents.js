@@ -7,9 +7,7 @@ import { showRoomInfo, getRoomId } from './roomInfo.js';
 import { setLeader, disableDistributionButton, enableDistributionButton, showSaveButton, hideSaveButton } from './leaderControls.js';
 import {
   setPhase,
-  setPlacementStep,
   setCitiesRemaining,
-  setCityPosition,
   resetPlacementState,
   addPieceClickHandler
 } from './pieceMenu.js';
@@ -312,7 +310,6 @@ function handlePhaseChanged(data) {
   saveGameStateLocally();
 
   if (data.phase === 'initialPlacement') {
-    if (data.step) setPlacementStep(data.step);
     showInfo('Initial placement phase!');
   } else if (data.phase === 'battle') {
     showInfo('Placement phase complete! Starting battle phase...');
@@ -397,9 +394,7 @@ function handleInitialPlacementStarted(data) {
   showBoardCompleteTransition(() => {
     // After transition, configure placement phase
     setPhase('initialPlacement');
-    setPlacementStep(data.currentStep);
     setCitiesRemaining(data.citiesRemaining || 3);
-    setCityPosition(null);
     showInfo(data.message);
 
     // Update turn indicator (data comes with event)
@@ -418,7 +413,6 @@ function handleInitialPlacementStarted(data) {
 function handleInitialPlacementUpdate(data) {
   console.log('Placement update:', data);
 
-  if (data.currentStep) setPlacementStep(data.currentStep);
   if (data.citiesRemaining !== undefined) setCitiesRemaining(data.citiesRemaining);
 
   showInfo(data.message);
@@ -446,10 +440,6 @@ function handleInitialPlacementComplete(data) {
 
 function handlePiecePlaced(data) {
   console.log('Piece placed:', data);
-  // Board update is done via updateBoard
-  if (data.pieceType === 'city') {
-    setCityPosition({ row: data.row, col: data.col });
-  }
 }
 
 function handleYouAreLeader() {
@@ -563,7 +553,6 @@ function handleRejoinSuccess(data) {
     disableTextureMenu();
     if (data.isLeader) showSaveButton();
     if (data.placementState) {
-      setPlacementStep(data.placementState.step);
       setCitiesRemaining(data.placementState.citiesRemaining);
     }
     setTimeout(() => addPieceClickHandler(), 100);

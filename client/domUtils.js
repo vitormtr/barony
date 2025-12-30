@@ -10,16 +10,8 @@ export const domHelper = {
       return document.querySelector(selector);
     },
   
-    batchSetDisplay(elements, displayValue) {
-      elements.forEach(el => el.style.display = displayValue);
-    },
-
     hide(element) {
       element.style.display = 'none';
-    },
-
-    hideBackground(element) {
-      element.style.backgroundImage = 'none';
     },
 
     clear(element) {
@@ -46,15 +38,7 @@ export const domHelper = {
     onClick(element, handler) {
         element.addEventListener('click', handler);
     },
-      
-    onDocumentClick(handler) {
-        document.addEventListener('click', handler);
-    },
 
-    setBackgroundImage(element, url) {
-        element.style.backgroundImage = `url(${url})`;
-    },
-      
     append(parent, child) {
         parent.appendChild(child);
     },

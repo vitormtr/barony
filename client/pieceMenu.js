@@ -14,18 +14,9 @@ export function setPhase(phase) {
   updatePhaseIndicator();
 }
 
-export function setPlacementStep(step) {
-  // Kept for compatibility, but no longer used
-  updatePhaseIndicator();
-}
-
 export function setCitiesRemaining(count) {
   citiesRemaining = count;
   updatePhaseIndicator();
-}
-
-export function setCityPosition(pos) {
-  // Kept for compatibility, but no longer used
 }
 
 export function getCurrentPhase() {
@@ -53,7 +44,13 @@ export function showPieceMenu(hex) {
     return;
   }
 
-  const hexData = JSON.parse(hex.dataset.hex);
+  let hexData;
+  try {
+    hexData = JSON.parse(hex.dataset.hex);
+  } catch {
+    showError('Invalid hex data');
+    return;
+  }
 
   // Check if hex has texture
   if (!hexData.texture) {
@@ -151,11 +148,9 @@ function placePiece(hex) {
   isProcessing = true;
   showLoadingOverlay(true);
 
-  console.log('Enviando placePiece:', payload);
   socket.emit('placePiece', payload);
 
   const resultHandler = (result) => {
-    console.log('Recebido placePieceResult:', result);
     isProcessing = false;
     showLoadingOverlay(false);
     hidePieceMenu();
@@ -173,7 +168,6 @@ function placePiece(hex) {
   // Safety timeout (increased to 10 seconds)
   setTimeout(() => {
     if (isProcessing) {
-      console.log('Timeout reached - removing listener');
       socket.off('placePieceResult', resultHandler);
       isProcessing = false;
       showLoadingOverlay(false);

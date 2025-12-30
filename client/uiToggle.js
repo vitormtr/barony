@@ -60,7 +60,7 @@ function toggleUI(show) {
   // Update toggle text
   const toggleText = document.querySelector('.ui-toggle-text');
   if (toggleText) {
-    toggleText.textContent = show ? 'Show UI' : 'Show UI';
+    toggleText.textContent = show ? 'Hide UI' : 'Show UI';
   }
 }
 

@@ -86,13 +86,6 @@ function createPlayerElement(player) {
   return container;
 }
 
-function createProfileImage(player) {
-  const img = createElementWithClass("img", CONFIG.PLAYER_CLASSES.image);
-  img.src = `./images/${player.image}`;
-  img.alt = `Player ${player.name}`;
-  return img;
-}
-
 function createPlayerInfo(player) {
   const infoContainer = createElementWithClass("div", CONFIG.PLAYER_CLASSES.info);
   infoContainer.appendChild(createPlayerHeader(player));
@@ -157,29 +150,6 @@ function getTitleDisplayName(title) {
     'duke': 'Duke'
   };
   return titles[title?.toLowerCase()] || 'Baron';
-}
-
-function createPlayerName(color, titleName) {
-  const nameElement = createElementWithClass("div", CONFIG.PLAYER_CLASSES.name);
-  nameElement.textContent = `${capitalizeFirstLetter(color)} - ${titleName || 'Baron'}`;
-  return nameElement;
-}
-
-function createResourcesDisplay(resources, resourcePoints) {
-  const container = createElementWithClass("div", "player-resources");
-
-  const points = resourcePoints || 0;
-
-  const totalElement = document.createElement("span");
-  totalElement.className = "resources-total";
-  totalElement.textContent = `${points} pts`;
-  if (points >= 15) {
-    totalElement.classList.add("can-promote");
-    totalElement.title = "Can promote title!";
-  }
-  container.appendChild(totalElement);
-
-  return container;
 }
 
 function createPiecesElements(pieces, color) {

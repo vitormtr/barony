@@ -6,9 +6,6 @@ export const DIRECTION_MAP = {
     ODD: [[-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [0, -1]]
 };
 
-// Helper function to get directions based on row
-export const getDirections = (row) => row % 2 === 1 ? DIRECTION_MAP.ODD : DIRECTION_MAP.EVEN;
-
 // Game phases
 export const GAME_PHASES = {
     WAITING: 'waiting',
@@ -18,31 +15,11 @@ export const GAME_PHASES = {
     ENDED: 'ended'
 };
 
-// Available textures
-export const TEXTURES = ['water.png', 'farm.png', 'mountain.png', 'plain.png', 'forest.png'];
-
-// Terrain types (without .png extension)
-export const TERRAIN_TYPES = {
-    WATER: 'water',
-    FARM: 'farm',
-    MOUNTAIN: 'mountain',
-    PLAIN: 'plain',
-    FOREST: 'forest'
-};
-
 // Terrains where cities can be placed (only plain and field - NOT forest, mountain or water)
 export const CITY_VALID_TERRAINS = ['plain.png', 'farm.png'];
 
 // Terrains where knights can be placed (any except water)
 export const KNIGHT_VALID_TERRAINS = ['farm.png', 'plain.png', 'forest.png', 'mountain.png'];
-
-// Piece types
-export const PIECE_TYPES = {
-    CITY: 'city',
-    STRONGHOLD: 'stronghold',
-    KNIGHT: 'knight',
-    VILLAGE: 'village'
-};
 
 // Structure types (pieces that are buildings)
 export const STRUCTURE_TYPES = ['city', 'stronghold', 'village'];

@@ -64,9 +64,13 @@ function isAdjacentToWater(row, col) {
     const adjCol = col + dCol;
     const neighbor = document.querySelector(`.hexagon[data-row="${adjRow}"][data-col="${adjCol}"]`);
     if (neighbor) {
-      const neighborData = JSON.parse(neighbor.dataset.hex);
-      if (neighborData.texture === 'water.png') {
-        return true;
+      try {
+        const neighborData = JSON.parse(neighbor.dataset.hex);
+        if (neighborData.texture === 'water.png') {
+          return true;
+        }
+      } catch {
+        // Invalid hex data, skip
       }
     }
   }
@@ -87,7 +91,12 @@ function getAdjacentPlayerKnights(row, col) {
 
     const neighbor = document.querySelector(`.hexagon[data-row="${adjRow}"][data-col="${adjCol}"]`);
     if (neighbor) {
-      const neighborData = JSON.parse(neighbor.dataset.hex);
+      let neighborData;
+      try {
+        neighborData = JSON.parse(neighbor.dataset.hex);
+      } catch {
+        return; // Skip invalid hex
+      }
       if (neighborData.pieces) {
         const playerKnights = neighborData.pieces.filter(p =>
           p.type === 'knight' && p.color === player?.color
@@ -192,12 +201,7 @@ function getAvailableActions(hexData) {
 function showContextMenu(hex, hexData) {
   hideAllMenus();
 
-  console.log('showContextMenu - hexData:', hexData);
-  console.log('showContextMenu - player:', player);
-  console.log('showContextMenu - player.color:', player?.color);
-
   const availableActions = getAvailableActions(hexData);
-  console.log('showContextMenu - availableActions:', availableActions);
 
   if (availableActions.length === 0) {
     showWarning('No action available on this hex');
@@ -639,8 +643,12 @@ function isBorderHex(row, col) {
     const newCol = col + dCol;
     const neighbor = document.querySelector(`.hexagon[data-row="${newRow}"][data-col="${newCol}"]`);
     if (!neighbor) return true;
-    const neighborData = JSON.parse(neighbor.dataset.hex);
-    if (!neighborData.texture) return true;
+    try {
+      const neighborData = JSON.parse(neighbor.dataset.hex);
+      if (!neighborData.texture) return true;
+    } catch {
+      return true; // Treat invalid data as border
+    }
   }
   return false;
 }
@@ -707,17 +715,10 @@ function removeEndActionButton() {
 
 // Main hex click handler
 function handleHexClick(e) {
-  console.log('handleHexClick called');
-  console.log('Phase:', getCurrentPhase());
-  const myTurn = isMyTurn();
-  console.log('isMyTurn:', myTurn);
-  console.log('player.id:', player?.id);
   if (getCurrentPhase() !== 'battle') {
-    console.log('Not in battle phase, returning');
     return;
   }
-  if (!myTurn) {
-    console.log('Not my turn, showing warning');
+  if (!isMyTurn()) {
     showWarning('Not your turn!');
     return;
   }
@@ -727,7 +728,13 @@ function handleHexClick(e) {
 
   e.stopPropagation();
 
-  const hexData = JSON.parse(hex.dataset.hex);
+  let hexData;
+  try {
+    hexData = JSON.parse(hex.dataset.hex);
+  } catch {
+    showError('Invalid hex data');
+    return;
+  }
   showContextMenu(hex, hexData);
 }
 
@@ -764,10 +771,6 @@ export function hideActionMenu() {
   resetActionState(true); // Full reset
   removeEndActionButton();
   removeHexClickHandler();
-}
-
-export function showActionMenu() {
-  // No longer used - kept for compatibility
 }
 
 export function getSelectedAction() {

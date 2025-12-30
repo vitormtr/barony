@@ -35,8 +35,6 @@ export class Player {
         
         if (this.hexCount[textureUsed] > 0) {
             this.hexCount[textureUsed]--;
-        } else {
-            console.log(`No hexes available for texture ${textureUsed}`);
         }
     }
 
@@ -193,6 +191,3 @@ export class Player {
         };
     }
 }
-
-// Re-export for backward compatibility
-export { NOBLE_TITLES, TITLE_NAMES } from './constants.js';

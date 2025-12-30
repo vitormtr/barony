@@ -16,7 +16,6 @@ const RESOURCE_INFO = {
   field: { icon: '🌾', value: 5, color: '#FFD700' }
 };
 
-let cardElement = null;
 let resourcePanelElement = null;
 let isMinimized = false;
 
@@ -137,10 +136,6 @@ function getTitleIndex(title) {
 }
 
 export function removeTitleCard() {
-  if (cardElement) {
-    cardElement.remove();
-    cardElement = null;
-  }
   if (resourcePanelElement) {
     resourcePanelElement.remove();
     resourcePanelElement = null;

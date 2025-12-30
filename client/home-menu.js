@@ -35,7 +35,6 @@ function getPlayerName() {
 }
 
 function handleCreateRoom() {
-  console.log('handleCreateRoom called');
   pendingAction = 'create';
   pendingRoomId = null;
   // Request available colors (all 4 for new room)
@@ -112,16 +111,12 @@ function showColorSelectModal(colors, roomId) {
 }
 
 function handleColorSelected(color) {
-  console.log('handleColorSelected called with color:', color);
   const playerName = getPlayerName();
-  console.log('playerName:', playerName);
   closeColorSelectModal();
 
   if (pendingAction === 'create') {
-    console.log('Emitting createRoomWithColor');
     emitCreateRoomWithColor(color, playerName);
   } else if (pendingAction === 'join' && pendingRoomId) {
-    console.log('Emitting joinRoomWithColor');
     emitJoinRoomWithColor(pendingRoomId, color, playerName);
   }
 

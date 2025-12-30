@@ -1,4 +1,5 @@
-import { Player, NOBLE_TITLES, TITLE_NAMES } from '../server/Player.js';
+import { Player } from '../server/Player.js';
+import { NOBLE_TITLES, TITLE_NAMES } from '../server/constants.js';
 
 describe('Player', () => {
   let player;

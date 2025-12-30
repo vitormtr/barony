@@ -1,14 +1,7 @@
 import { nanoid } from 'nanoid';
 import { createEmptyBoard } from './utils.js';
 import { Player } from './Player.js';
-import {
-    DIRECTION_MAP,
-    GAME_PHASES,
-    TEXTURES,
-    CITY_VALID_TERRAINS,
-    KNIGHT_VALID_TERRAINS,
-    PLAYER_COLORS
-} from './constants.js';
+import { GAME_PHASES } from './constants.js';
 import * as BoardLogic from './BoardLogic.js';
 import * as BattleActions from './BattleActions.js';
 import * as BoardSetup from './BoardSetup.js';
@@ -515,11 +508,6 @@ export class Sessions {
         return null;
     }
 
-    // Calculate player's final score
-    calculateFinalScore(player) {
-        return TurnManager.calculateFinalScore(player);
-    }
-
     // End game and calculate winner
     endGame(session, io, roomId) {
         const result = TurnManager.endGame(session);
@@ -582,6 +570,11 @@ export class Sessions {
         io.to(roomId).emit('drawPlayers', Object.values(session.players));
     }
 
+    emitBoardUpdate(session, io, roomId) {
+        io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
+        io.to(roomId).emit('drawPlayers', Object.values(session.players));
+    }
+
     // Utilities - delegating to BoardLogic module
     isAdjacentToWater(boardState, row, col) {
         return BoardLogic.isAdjacentToWater(boardState, row, col);
@@ -595,9 +588,8 @@ export class Sessions {
         return BoardLogic.getResourceName(resource);
     }
 
-    emitBoardUpdate(session, io, roomId) {
-        io.to(roomId).emit('updateBoard', { boardId: session.boardId, boardState: session.boardState });
-        io.to(roomId).emit('drawPlayers', Object.values(session.players));
+    shuffleArray(array) {
+        return BoardLogic.shuffleArray(array);
     }
 
     // Update piece owner IDs when player joins a loaded game
@@ -928,15 +920,11 @@ export class Sessions {
     }
 
     getPlayersInRoom(roomId) {
-        const session = this.session[roomId];
-        return session ? Object.values(session.players) : [];
+        return PlayerManager.getPlayersInRoom(this.session[roomId]);
     }
 
-    getPlayer(socketId) {
-        const roomId = this.getRoomIdBySocketId(socketId);
-        const session = this.session[roomId];
-        console.log(session.players[socketId])
-        return session ? session.players[socketId] : null;
+    calculateFinalScore(player) {
+        return TurnManager.calculateFinalScore(player);
     }
 
     // Rejoin a room after page refresh using player color

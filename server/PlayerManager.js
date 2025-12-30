@@ -269,7 +269,7 @@ export function removeFromTurnOrder(initialPlacementState, socketId) {
 export function getNextPlayer(players, currentPlayerId) {
     const currentIndex = players.findIndex(p => p.id === currentPlayerId);
     const nextIndex = (currentIndex + 1) % players.length;
-    return players[Math.max(0, nextIndex)] || players[0];
+    return players[nextIndex];
 }
 
 /**
