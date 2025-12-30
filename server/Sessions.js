@@ -899,6 +899,12 @@ export class Sessions {
         return PlayerManager.getPlayersInRoom(this.session[roomId]);
     }
 
+    getPlayer(socketId) {
+        const roomId = this.getRoomIdBySocketId(socketId);
+        const session = this.session[roomId];
+        return session ? session.players[socketId] : null;
+    }
+
     calculateFinalScore(player) {
         return TurnManager.calculateFinalScore(player);
     }
