@@ -21,7 +21,6 @@ export function saveToLocal(gameState) {
 
   try {
     localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(saveData));
-    console.log('[LocalSave] Game saved to localStorage');
   } catch (e) {
     console.error('[LocalSave] Failed to save to localStorage:', e);
   }
@@ -33,7 +32,6 @@ export function loadFromLocal() {
     const data = localStorage.getItem(LOCAL_SAVE_KEY);
     if (data) {
       const saveData = JSON.parse(data);
-      console.log('[LocalSave] Game loaded from localStorage, saved at:', saveData.savedAt);
       return saveData;
     }
   } catch (e) {
@@ -46,7 +44,6 @@ export function loadFromLocal() {
 export function clearLocalSave() {
   localStorage.removeItem(LOCAL_SAVE_KEY);
   currentGameState = null;
-  console.log('[LocalSave] Local save cleared');
 }
 
 // Download save as JSON file
@@ -66,8 +63,6 @@ export function downloadSave() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-
-  console.log('[LocalSave] Save downloaded');
 }
 
 // Upload save from JSON file
@@ -86,7 +81,6 @@ export function uploadSave(callback) {
         const saveData = JSON.parse(event.target.result);
         if (saveData.gameState) {
           localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(saveData));
-          console.log('[LocalSave] Save uploaded from file');
           if (callback) callback(saveData);
         } else {
           alert('Invalid save file format');
@@ -110,8 +104,6 @@ export function startAutoSave() {
       saveToLocal(currentGameState);
     }
   }, AUTO_SAVE_INTERVAL);
-
-  console.log('[LocalSave] Auto-save started');
 }
 
 // Stop auto-save timer
@@ -119,7 +111,6 @@ export function stopAutoSave() {
   if (autoSaveTimer) {
     clearInterval(autoSaveTimer);
     autoSaveTimer = null;
-    console.log('[LocalSave] Auto-save stopped');
   }
 }
 
@@ -172,10 +163,7 @@ export function addLocalSaveButtons() {
 // Initialize local save system
 export function initLocalSave() {
   // Check for existing local save on page load
-  const saveInfo = getLocalSaveInfo();
-  if (saveInfo) {
-    console.log('[LocalSave] Found local save from:', saveInfo.savedAt);
-  }
+  getLocalSaveInfo();
 }
 
 // Initialize on module load

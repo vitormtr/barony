@@ -80,7 +80,6 @@ function getSavedSession() {
 function tryReconnect() {
   const session = getSavedSession();
   if (session) {
-    console.log('Attempting to reconnect to room:', session.roomId);
     socket.emit('rejoinRoom', { roomId: session.roomId, playerColor: session.playerColor });
   }
 }
@@ -150,12 +149,10 @@ export function emitUpdatePlayerTexture(texture) {
 }
 
 export function emitRequestPlayerData() {
-  console.log('Requesting player data ', socket.id);
   socket.emit(CONFIG.SOCKET.EVENTS.REQUEST_PLAYER_DATA, socket.id);
 }
 
 function handleSocketConnect() {
-  console.log("Connection established with ID:", socket.id);
   // Initialize audio system
   initAudio();
   createAudioControls();
@@ -170,7 +167,6 @@ let latestGamePhase = null;
 let latestTurnData = null;
 
 function handleBoardUpdate(boardState) {
-  console.log('Board update received');
   updateBoard(boardState);
   // boardState from server is { boardState: [...] }, extract the array
   latestBoardState = boardState.boardState || boardState;
@@ -178,7 +174,6 @@ function handleBoardUpdate(boardState) {
 }
 
 function handleBoardCreation(boardState) {
-  console.log('Starting board creation');
   createBoard(boardState);
   hideMenu();
   // boardState may be an array directly or { boardState: [...] }
@@ -204,8 +199,6 @@ function saveGameStateLocally() {
 }
 
 function handlePlayersDraw(players) {
-  console.log('Updating players interface');
-
   // Handle both array and object formats
   const playersArray = Array.isArray(players) ? players : Object.values(players);
   createPlayersElement(playersArray);
@@ -269,7 +262,6 @@ function handlePlayerJoinedRoom(currentPlayer) {
 }
 
 export function handlePlayerDataResponse(playerData) {
-  console.log('Player data received:', playerData);
   if (player) {
     // Update properties in place to preserve the exported reference
     Object.assign(player, playerData);
@@ -288,7 +280,6 @@ function handleSocketError(message) {
 }
 
 function handleTurnChanged(turnData) {
-  console.log('Turn changed:', turnData);
   updateTurnIndicator(turnData);
   // Notify action menu about turn change
   actionMenuTurnChanged();
@@ -298,13 +289,11 @@ function handleTurnChanged(turnData) {
 }
 
 function handlePlayerDisconnected(data) {
-  console.log('Player disconnected:', data);
   const displayName = data.playerName || data.playerColor;
   showWarning(`${displayName} disconnected.`);
 }
 
 function handlePhaseChanged(data) {
-  console.log('Phase changed:', data);
   setPhase(data.phase);
   latestGamePhase = data.phase;
   saveGameStateLocally();
@@ -320,7 +309,6 @@ function handlePhaseChanged(data) {
 }
 
 function handleRoomCreated(data) {
-  console.log('Room created:', data.roomId);
   hideMenu();
   showRoomInfo(data.roomId);
   showSuccess(`Room ${data.roomId} created! Share the code.`);
@@ -341,7 +329,6 @@ function handleRoomCreated(data) {
 }
 
 function handleRoomJoined(data) {
-  console.log('Joined room:', data.roomId);
   hideMenu();
   showRoomInfo(data.roomId);
   showSuccess(`You joined room ${data.roomId}!`);
@@ -359,14 +346,12 @@ function handleRoomJoined(data) {
 }
 
 function handleRandomDistributionComplete(data) {
-  console.log('Random distribution complete:', data);
   showSuccess(data.message);
   disableDistributionButton();
   showSaveButton();
 }
 
 function handleGameRestarted(data) {
-  console.log('Game restarted:', data);
   showSuccess(data.message);
   enableDistributionButton();
   resetPlacementState();
@@ -377,16 +362,12 @@ function handleGameRestarted(data) {
 }
 
 function handleRestartResult(result) {
-  if (result.success) {
-    console.log('Restart successful');
-  } else {
+  if (!result.success) {
     showError(result.message);
   }
 }
 
 function handleInitialPlacementStarted(data) {
-  console.log('Initial placement started:', data);
-
   // Disable texture menu
   disableTextureMenu();
 
@@ -411,15 +392,12 @@ function handleInitialPlacementStarted(data) {
 }
 
 function handleInitialPlacementUpdate(data) {
-  console.log('Placement update:', data);
-
   if (data.citiesRemaining !== undefined) setCitiesRemaining(data.citiesRemaining);
 
   showInfo(data.message);
 }
 
 function handleInitialPlacementComplete(data) {
-  console.log('Initial placement complete:', data);
   setPhase('battle');
   latestGamePhase = 'battle';
   showSuccess(data.message);
@@ -439,22 +417,19 @@ function handleInitialPlacementComplete(data) {
 }
 
 function handlePiecePlaced(data) {
-  console.log('Piece placed:', data);
+  // Board update handled via updateBoard event
 }
 
 function handleYouAreLeader() {
-  console.log('You are now the room leader!');
   setLeader(true);
   showInfo('You are now the room leader!');
 }
 
 function handleDukeAnnounced(data) {
-  console.log('Duke announced:', data);
   showWarning(data.message);
 }
 
 function handleGameEnded(data) {
-  console.log('Game ended:', data);
   hideActionMenu();
   // Stop music
   stopMusic();
@@ -498,8 +473,6 @@ function showGameEndScreen(data) {
 }
 
 function handleRejoinSuccess(data) {
-  console.log('Rejoin successful:', data);
-
   // Hide menu and show game
   hideMenu();
 
@@ -567,7 +540,6 @@ function handleRejoinSuccess(data) {
 }
 
 function handleRejoinFailed(data) {
-  console.log('Rejoin failed:', data.message);
   // Clear invalid session
   clearSession();
   // User stays on menu screen
@@ -606,14 +578,12 @@ function handleSaveGameResult(result) {
 }
 
 function handleSavesList(saves) {
-  console.log('Saves list received:', saves);
   if (onSavesListCallback) {
     onSavesListCallback(saves);
   }
 }
 
 function handleGameLoaded(result) {
-  console.log('Game loaded:', result);
   if (onGameLoadedCallback) {
     onGameLoadedCallback(result);
   }
@@ -624,8 +594,6 @@ function handleLoadGameFailed(data) {
 }
 
 function handleJoinedLoadedGame(result) {
-  console.log('Joined loaded game:', result);
-
   if (result.success) {
     player = result.player;
     setLocalPlayer(result.player.id);
@@ -643,11 +611,6 @@ function handleJoinLoadedGameFailed(data) {
 }
 
 function handleLoadedGameReady(data) {
-  console.log('Loaded game ready:', data);
-  console.log('handleLoadedGameReady - currentTurn:', data.currentTurn);
-  console.log('handleLoadedGameReady - player:', player);
-  console.log('handleLoadedGameReady - player.id:', player?.id);
-
   // Hide menu and show game
   hideMenu();
 
@@ -661,7 +624,6 @@ function handleLoadedGameReady(data) {
     if (updatedPlayer) {
       // Update properties in place to preserve the exported reference
       Object.assign(player, updatedPlayer);
-      console.log('Updated player data:', player);
     }
   }
 
@@ -670,10 +632,7 @@ function handleLoadedGameReady(data) {
 
   // Update turn indicator
   if (data.currentTurn) {
-    console.log('Calling updateTurnIndicator with:', data.currentTurn);
     updateTurnIndicator(data.currentTurn);
-  } else {
-    console.log('WARNING: currentTurn is null/undefined!');
   }
 
   // Save session for reconnection
@@ -721,15 +680,12 @@ function handleLoadedGameReady(data) {
 }
 
 function handlePlayerClaimedColor(data) {
-  console.log('Player claimed color:', data);
-  // Update UI if needed
   if (onLoadedGameInfoCallback) {
     onLoadedGameInfoCallback({ remainingColors: data.remainingColors });
   }
 }
 
 function handleLoadedGameInfo(info) {
-  console.log('Loaded game info:', info);
   if (onLoadedGameInfoCallback) {
     onLoadedGameInfoCallback(info);
   }
@@ -743,7 +699,6 @@ export function setOnLoadedGameColorSelectCallback(callback) {
 }
 
 function handleLoadedGameColorSelect(data) {
-  console.log('Loaded game color select:', data);
   if (onLoadedGameColorSelectCallback) {
     onLoadedGameColorSelectCallback(data);
   }

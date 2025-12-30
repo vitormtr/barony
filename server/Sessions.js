@@ -46,7 +46,6 @@ export class Sessions {
         this.session[roomId].playerOnTurn = player;
         socket.join(roomId);
         socket.emit('createBoard', boardState);
-        console.log(`Session ${roomId} created! Leader: ${socket.id}`);
         socket.emit('drawPlayers', this.session[roomId].players);
 
         // Send initial turn info
@@ -134,7 +133,6 @@ export class Sessions {
         this.session[roomId].playerOnTurn = player;
         socket.join(roomId);
         socket.emit('createBoard', boardState);
-        console.log(`Session ${roomId} created with color ${color}! Leader: ${socket.id}`);
         socket.emit('drawPlayers', this.session[roomId].players);
 
         socket.emit('turnChanged', {
@@ -221,8 +219,6 @@ export class Sessions {
             lockedForEntry: true
         });
 
-        console.log(`Random distribution in room ${roomId}. Entry blocked.`);
-
         // Start initial placement phase (place cities and knights)
         this.startInitialPlacement(roomId, io);
 
@@ -254,8 +250,6 @@ export class Sessions {
             currentPlayerColor: session.playerOnTurn.color,
             currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
         });
-
-        console.log(`Initial placement phase started in room ${roomId}`);
     }
 
     // Place a city on the board using InitialPlacement module
@@ -345,8 +339,6 @@ export class Sessions {
 
         // Add game start history entry
         this.addHistoryEntry(session, io, roomId, 'gameStart', session.playerOnTurn.color, 'Battle phase');
-
-        console.log(`Initial placement phase complete in room ${roomId}. Starting battle.`);
 
         return { success: true, phaseComplete: true };
     }
@@ -518,8 +510,6 @@ export class Sessions {
             message: result.message
         });
 
-        console.log(`Game ended in room ${roomId}. Winner: ${result.winner.color}`);
-
         return result.scores;
     }
 
@@ -529,14 +519,11 @@ export class Sessions {
         const session = this.session[roomId];
 
         if (!session) {
-            console.log('endTurn: session not found for socket', socket.id);
             return;
         }
 
         // Validate it's this player's turn
-        console.log('endTurn: playerOnTurn:', session.playerOnTurn?.id, 'socket.id:', socket.id);
         if (!TurnManager.isPlayerTurn(session, socket.id)) {
-            console.log('endTurn: not this player turn');
             return;
         }
 
@@ -553,7 +540,6 @@ export class Sessions {
                 winner: result.winner,
                 message: result.message
             });
-            console.log(`Game ended in room ${roomId}. Winner: ${result.winner.color}`);
             return;
         }
 
@@ -691,8 +677,6 @@ export class Sessions {
             currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
         });
 
-        console.log(`Game restarted in room ${roomId}`);
-
         return { success: true, message: 'Game restarted successfully!' };
     }
 
@@ -757,7 +741,6 @@ export class Sessions {
 
         // If game has started, DON'T remove the player - allow reconnection
         if (session.gameStarted) {
-            console.log(`Player ${disconnectedPlayer.color} disconnected from room ${roomId} (can reconnect)`);
             // Notify other players
             io.to(roomId).emit('playerDisconnected', {
                 playerId: socket.id,
@@ -777,7 +760,6 @@ export class Sessions {
         // If no one left, delete session
         if (remainingPlayers.length === 0) {
             delete this.session[roomId];
-            console.log(`Session ${roomId} removed - no players.`);
             return;
         }
 
@@ -793,14 +775,11 @@ export class Sessions {
                 currentPlayerColor: session.playerOnTurn.color,
                 currentPlayerName: session.playerOnTurn.name || session.playerOnTurn.color
             });
-
-            console.log(`Turn passed to ${session.playerOnTurn.color} after disconnection`);
         }
 
         // If leader left, promote another player
         if (session.leaderId === socket.id) {
             const newLeader = PlayerManager.promoteNewLeader(session, remainingPlayers);
-            console.log(`New leader: ${newLeader.color}`);
             // Notify new leader
             io.to(newLeader.id).emit('youAreLeader');
         }
@@ -814,8 +793,6 @@ export class Sessions {
         });
 
         io.to(roomId).emit('drawPlayers', remainingPlayers);
-
-        console.log(`Player ${disconnectedPlayer.color} disconnected from room ${roomId}`);
     }
 
     applyTextureToBoard(socket, io, payload) {
@@ -940,8 +917,6 @@ export class Sessions {
         // Join socket to room
         socket.join(roomId);
 
-        console.log(`Player ${playerColor} rejoined room ${roomId} with new socket ${socket.id}`);
-
         // Build response data
         const responseData = {
             roomId,
@@ -1063,8 +1038,6 @@ export class Sessions {
             playerOnTurnColor: saveData.playerOnTurnColor
         };
 
-        console.log(`Game loaded from ${filename} into room ${roomId}`);
-
         return {
             success: true,
             roomId,
@@ -1163,8 +1136,6 @@ export class Sessions {
             playerOnTurnColor
         };
 
-        console.log(`Local save loaded into room ${roomId}`);
-
         return {
             success: true,
             roomId,
@@ -1242,9 +1213,6 @@ export class Sessions {
         // Join socket to room
         socket.join(roomId);
 
-        console.log(`Player claimed color ${claimedColor} in loaded game ${roomId}`);
-        console.log(`  playerOnTurnColor: ${session.playerOnTurnColor}, playerOnTurn: ${session.playerOnTurn?.color || 'null'}`);
-
         // Check if all players have joined
         const allJoined = session.availableColors.length === 0;
 
@@ -1264,7 +1232,6 @@ export class Sessions {
                 const players = Object.values(session.players);
                 if (players.length > 0) {
                     session.playerOnTurn = players[0];
-                    console.log(`Warning: playerOnTurn was null, defaulting to first player: ${players[0].color}`);
                 }
             }
 
@@ -1272,8 +1239,6 @@ export class Sessions {
             delete session.loadedGame;
             delete session.availableColors;
             delete session.playerOnTurnColor;
-
-            console.log(`All players joined. Final playerOnTurn: ${session.playerOnTurn?.color || 'null'} (id: ${session.playerOnTurn?.id || 'null'})`);
         }
 
         return {
