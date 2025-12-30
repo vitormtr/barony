@@ -1,10 +1,8 @@
 export const CONFIG = {
   PATHS: {
-      IMAGES: './images/',
-      SOCKET_SERVER: window.location.origin
+      IMAGES: './images/'
   },
   SOCKET: {
-      SERVER_URL: window.location.origin,
       EVENTS: {
         CONNECT: 'connect',
         UPDATE_BOARD: 'updateBoard',

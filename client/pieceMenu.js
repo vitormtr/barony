@@ -7,29 +7,17 @@ let currentPhase = 'waiting';
 let citiesRemaining = 3;
 let isProcessing = false;
 let pieceMenuElement = null;
-let phaseIndicatorElement = null;
 
 export function setPhase(phase) {
   currentPhase = phase;
-  updatePhaseIndicator();
 }
 
 export function setCitiesRemaining(count) {
   citiesRemaining = count;
-  updatePhaseIndicator();
 }
 
 export function getCurrentPhase() {
   return currentPhase;
-}
-
-// Phase indicator removed - no longer showing placement messages
-function updatePhaseIndicator() {
-  // Remove existing indicator if present
-  if (phaseIndicatorElement) {
-    phaseIndicatorElement.remove();
-    phaseIndicatorElement = null;
-  }
 }
 
 // Show piece menu when clicking a hex
